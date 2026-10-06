@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Layers, X, Play, Loader2, Sparkles } from 'lucide-react';
-import type { Lead, ScanBatchItem } from '../types';
-import { processFormImage, renderSyntheticFormImage, TEST_PROFILES } from '../lib/ocrEngine';
+import { Camera, Upload, X, Play, Loader2 } from 'lucide-react';
+import type { Lead } from '../types';
+import { processFormImage, renderSyntheticFormImage } from '../lib/ocrEngine';
 
 interface ScannerModalProps {
   campaignId: string;
@@ -15,15 +15,11 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   campaignId,
   repName,
   onLeadCaptured,
-  onBatchCaptured,
   onClose
 }) => {
-  const [mode, setMode] = useState<'single' | 'batch'>('single');
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [batchItems, setBatchItems] = useState<ScanBatchItem[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [selectedDemoIndex, setSelectedDemoIndex] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +42,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Camera access error:', err);
-      setCameraError('Geen directe camera beschikbaar in browser. Gebruik de fotoupload of de testknop hieronder.');
+      setCameraError('Camera niet geopend. Gebruik de fotoupload of de testknop hieronder.');
       setCameraActive(false);
     }
   };
@@ -69,33 +65,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   }, []);
 
   // Process captured image
-  const handleImageCaptured = async (dataUrl: string, profileIdx?: number) => {
+  const handleImageCaptured = async (dataUrl: string, profileIdx = 0) => {
     setIsProcessing(true);
     try {
-      const idx = profileIdx !== undefined ? profileIdx : selectedDemoIndex;
-      if (mode === 'single') {
-        const lead = await processFormImage(dataUrl, campaignId, repName, idx);
-        setIsProcessing(false);
-        stopCamera();
-        onLeadCaptured(lead);
-      } else {
-        // Batch mode: add to batch list
-        const newItem: ScanBatchItem = {
-          id: crypto.randomUUID(),
-          imageBlob: new Blob(),
-          previewUrl: dataUrl,
-          status: 'processing'
-        };
-        setBatchItems((prev) => [...prev, newItem]);
-
-        const lead = await processFormImage(dataUrl, campaignId, repName, batchItems.length);
-        setBatchItems((prev) =>
-          prev.map((item) =>
-            item.id === newItem.id ? { ...item, status: 'done', extractedLead: lead } : item
-          )
-        );
-        setIsProcessing(false);
-      }
+      const lead = await processFormImage(dataUrl, campaignId, repName, profileIdx);
+      setIsProcessing(false);
+      stopCamera();
+      onLeadCaptured(lead);
     } catch (err) {
       console.error('Scan processing error:', err);
       setIsProcessing(false);
@@ -132,226 +108,136 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Trigger Demo Scan with the selected profile
-  const triggerDemoScan = async (profileIdx: number) => {
+  // Trigger Demo Scan
+  const triggerDemoScan = async () => {
     setIsProcessing(true);
-    const dataUrl = renderSyntheticFormImage(profileIdx);
-    await handleImageCaptured(dataUrl, profileIdx);
-  };
-
-  const handleFinishBatch = () => {
-    const readyLeads = batchItems
-      .filter((b) => b.extractedLead !== undefined)
-      .map((b) => b.extractedLead!);
-    stopCamera();
-    onBatchCaptured(readyLeads);
+    const randomIdx = Math.floor(Math.random() * 4);
+    const dataUrl = renderSyntheticFormImage(randomIdx);
+    await handleImageCaptured(dataUrl, randomIdx);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md max-w-full overflow-x-hidden">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] min-w-0">
-        {/* Top Control Bar */}
-        <div className="bg-[#002B49] text-white px-3 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 shrink-0" />
-            <h2 className="font-bold text-sm sm:text-lg truncate">Formulier Scanner</h2>
-          </div>
+    <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between">
+      {/* Top Bar */}
+      <div className="px-5 py-4 flex items-center justify-between text-white z-10 bg-gradient-to-b from-black/80 to-transparent">
+        <span className="text-sm font-semibold tracking-wide text-slate-200">
+          Lijn formulier uit in kader
+        </span>
+        <button
+          onClick={() => {
+            stopCamera();
+            onClose();
+          }}
+          className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 bg-blue-950 p-1 rounded-xl border border-blue-800 shrink-0">
-            <button
-              type="button"
-              onClick={() => setMode('single')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                mode === 'single' ? 'bg-orange-600 text-white shadow' : 'text-blue-300 hover:text-white'
-              }`}
-            >
-              Enkel
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('batch')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${
-                mode === 'batch' ? 'bg-orange-600 text-white shadow' : 'text-blue-300 hover:text-white'
-              }`}
-            >
-              <Layers className="w-3 h-3" />
-              <span>Batch</span>
-            </button>
-          </div>
+      {/* Viewfinder Center */}
+      <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+        {/* Camera stream */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${cameraActive ? 'opacity-100' : 'opacity-0'}`}
+        />
 
-          <button
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        {/* Crisp Document Corner Frame */}
+        <div className="absolute inset-8 sm:inset-16 border-2 border-white/50 rounded-2xl pointer-events-none flex flex-col justify-between p-4">
+          <div className="flex justify-between text-[11px] font-mono text-white/70">
+            <span>┌ CONTACT</span>
+            <span>MILTENYI ┐</span>
+          </div>
+          <div className="text-center text-xs font-medium text-white/70 bg-black/30 backdrop-blur-sm py-1 px-3 rounded-full mx-auto">
+            Houd formulier recht en stil
+          </div>
+          <div className="flex justify-between text-[11px] font-mono text-white/70">
+            <span>└ RESEARCH</span>
+            <span>CHECKBOX ┘</span>
+          </div>
         </div>
 
-        {/* Viewfinder & Controls */}
-        <div className="flex-1 bg-black relative flex flex-col items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[400px]">
-          {/* Live Video */}
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              cameraActive ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
-
-          {/* Form Alignment Guidelines Overlay */}
-          <div className="absolute inset-4 sm:inset-10 border-2 border-dashed border-white/70 rounded-2xl pointer-events-none flex flex-col justify-between p-3 sm:p-4 bg-black/20">
-            <div className="flex justify-between items-start text-[11px] text-white/80 font-mono tracking-wider">
-              <span>[ CONTACT DETAILS ]</span>
-              <span className="text-orange-400 font-bold">MILTENYI FORM</span>
+        {/* Fallback if no camera */}
+        {(!cameraActive || cameraError) && (
+          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+            <Camera className="w-10 h-10 text-slate-500 mb-3" />
+            <p className="text-xs text-slate-300 max-w-xs mb-5">
+              {cameraError || 'Camera initialiseren...'}
+            </p>
+            <div className="flex flex-col gap-2 w-full max-w-xs">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Foto van formulier uploaden</span>
+              </button>
+              <button
+                type="button"
+                onClick={triggerDemoScan}
+                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <Play className="w-3.5 h-3.5 text-orange-400" />
+                <span>Simuleer test-scan</span>
+              </button>
             </div>
-
-            {/* Note box outline guideline */}
-            <div className="my-auto h-36 sm:h-40 border border-white/40 rounded-lg flex items-center justify-center">
-              <span className="text-xs text-white/70 font-semibold bg-black/40 px-3 py-1 rounded">
-                Plaats "Research Support" veld hier
-              </span>
-            </div>
-
-            <div className="text-center text-[11px] text-white/80 font-mono">
-              [ NEWSLETTER CHECKBOX ]
-            </div>
-          </div>
-
-          {/* Camera Error / Fallback Card */}
-          {(!cameraActive || cameraError) && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center text-white z-10">
-              <Camera className="w-10 h-10 text-slate-400 mb-2" />
-              <p className="text-xs sm:text-sm font-medium text-slate-300 max-w-sm mb-4">
-                {cameraError || 'Camera initialiseren...'}
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow"
-                >
-                  <Upload className="w-4 h-4" /> Foto van Formulier Uploaden
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Processing Spinner Overlay */}
-          {isProcessing && (
-            <div className="absolute inset-0 bg-slate-950/75 flex flex-col items-center justify-center text-white z-20">
-              <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-2" />
-              <p className="text-sm font-semibold">Handschrift analyseren & velden splitsen...</p>
-              <p className="text-xs text-slate-400 mt-1">Uitsnedes genereren en CRM-match bepalen</p>
-            </div>
-          )}
-        </div>
-
-        {/* Batch Preview Tray (if batch mode has items) */}
-        {mode === 'batch' && batchItems.length > 0 && (
-          <div className="bg-slate-100 p-3 border-t border-slate-200 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 overflow-x-auto py-1">
-              {batchItems.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="relative w-12 h-16 rounded-lg overflow-hidden border-2 border-orange-500 bg-white shadow-sm shrink-0"
-                >
-                  <img src={item.previewUrl} alt={`Scan ${idx + 1}`} className="w-full h-full object-cover" />
-                  <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] text-white text-center font-bold">
-                    #{idx + 1}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleFinishBatch}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 shadow flex items-center gap-1.5"
-            >
-              Klaar ({batchItems.length}) → Review
-            </button>
           </div>
         )}
 
-        {/* Test Scenario Selector Bar */}
-        <div className="bg-blue-50/80 px-4 py-2.5 border-t border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-blue-950">
-            <Sparkles className="w-4 h-4 text-orange-600 shrink-0" />
-            <span>Kies Testscenario:</span>
+        {/* Loading Spinner */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center text-white z-20">
+            <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-3" />
+            <p className="text-sm font-semibold">Formulier verwerken...</p>
+            <p className="text-xs text-slate-400 mt-0.5">Uitsnedes maken & CRM controleren</p>
           </div>
+        )}
+      </div>
 
-          <div className="flex items-center gap-2 flex-1 max-w-sm">
-            <select
-              value={selectedDemoIndex}
-              onChange={(e) => setSelectedDemoIndex(Number(e.target.value))}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-blue-300 bg-white text-xs font-semibold text-slate-800"
-            >
-              {TEST_PROFILES.map((p, idx) => (
-                <option key={idx} value={idx}>
-                  #{idx + 1}: {p.title}
-                </option>
-              ))}
-            </select>
+      {/* Bottom Shutter Controls (Clean iOS style) */}
+      <div className="px-8 py-6 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between z-10">
+        {/* Upload Button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="p-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          title="Upload foto"
+        >
+          <Upload className="w-5 h-5" />
+        </button>
 
-            <button
-              type="button"
-              disabled={isProcessing}
-              onClick={() => triggerDemoScan(selectedDemoIndex)}
-              className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Simuleer</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Bottom Shutter & Action Bar */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between gap-4">
-          {/* File Upload Button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-3 rounded-2xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors shadow-sm"
-            title="Upload foto vanaf toestel"
-          >
-            <Upload className="w-5 h-5" />
-          </button>
-
-          {/* Shutter Button */}
-          <button
-            type="button"
-            disabled={isProcessing}
-            onClick={capturePhoto}
-            className="w-16 h-16 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white flex items-center justify-center shadow-lg transition-transform border-4 border-white ring-4 ring-orange-200"
-            title="Maak foto"
-          >
+        {/* Shutter Button */}
+        <button
+          type="button"
+          disabled={isProcessing}
+          onClick={capturePhoto}
+          className="w-18 h-18 rounded-full bg-white p-1 shadow-lg active:scale-95 transition-transform"
+        >
+          <div className="w-16 h-16 rounded-full bg-orange-600 hover:bg-orange-500 flex items-center justify-center text-white">
             <Camera className="w-7 h-7" />
-          </button>
+          </div>
+        </button>
 
-          {/* Direct Single Demo Action */}
-          <button
-            type="button"
-            onClick={() => triggerDemoScan(0)}
-            disabled={isProcessing}
-            className="px-3 py-2 rounded-2xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-900 text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
-          >
-            <Play className="w-3.5 h-3.5 text-orange-600" />
-            <span className="hidden sm:inline">Snelle Test (NKI)</span>
-            <span className="sm:hidden">Snelle Test</span>
-          </button>
-        </div>
+        {/* Quick Demo Test Button */}
+        <button
+          type="button"
+          disabled={isProcessing}
+          onClick={triggerDemoScan}
+          className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-orange-400 transition-colors flex items-center justify-center"
+          title="Test scan"
+        >
+          <Play className="w-5 h-5" />
+        </button>
       </div>
     </div>
   );

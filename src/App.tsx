@@ -142,15 +142,6 @@ export function App() {
     syncPendingLeads().then(() => loadLeads());
   };
 
-  // Clear all leads
-  const handleClearAllLeads = async () => {
-    if (!confirm('Weet je zeker dat je alle lokale leads wilt wissen?')) return;
-    for (const l of leads) {
-      await deleteLocalLead(l.id);
-    }
-    await loadLeads();
-  };
-
   const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
 
   return (
@@ -162,12 +153,10 @@ export function App() {
         isOnline={isOnline}
         pendingSyncCount={pendingCount}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onManualSync={handleManualSync}
-        isSyncing={isSyncing}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 sm:py-6">
         <LeadsTable
           leads={leads}
           activeCampaignId={campaignId}
@@ -179,7 +168,6 @@ export function App() {
           }}
           onDeleteLead={handleDeleteLead}
           onLoadSampleLeads={handleLoadSampleLeads}
-          onClearAllLeads={handleClearAllLeads}
         />
       </main>
 
