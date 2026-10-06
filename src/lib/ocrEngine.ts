@@ -159,8 +159,8 @@ async function extractWithGemini(
   apiKey: string
 ): Promise<{ data?: Extracted; error?: string }> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  // Tried in order; on 503/429 (overload) we back off briefly and fall through to the next model
-  const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+  // Tried in order; on 503/429 (overload) we back off briefly, on 404 (retired model) we move on
+  const MODELS = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
   const urlFor = (model: string) =>
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const payload = {
@@ -188,8 +188,16 @@ async function extractWithGemini(
         if (!res.ok) {
           const body = await res.json().catch(() => null);
           lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
-          const overloaded = res.status === 429 || res.status >= 500;
-          if (!overloaded) return { error: lastError }; // bad key / bad request: no point retrying
+          if (res.status === 401 || res.status === 403) return { error: lastError }; // bad key: no point retrying
+          if (res.status === 404) break; // model retired/unavailable: next model
+          if (res.status === 400) {
+            // Some models reject the thinking setting: drop it and retry once
+            if (payload.generationConfig.thinkingConfig) {
+              delete (payload.generationConfig as Record<string, unknown>).thinkingConfig;
+              continue;
+            }
+            break;
+          }
           if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
           continue;
         }
