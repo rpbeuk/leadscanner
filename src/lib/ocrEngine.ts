@@ -1,11 +1,22 @@
-import type { Lead } from '../types';
+import Tesseract from 'tesseract.js';
+import type { Lead, ConfidenceFlag } from '../types';
 import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
+
+const KEY_GEMINI = 'miltenyi_gemini_api_key';
+
+export function getSavedGeminiKey(): string {
+  return localStorage.getItem(KEY_GEMINI) || import.meta.env.VITE_GEMINI_API_KEY || '';
+}
+
+export function saveGeminiKey(key: string): void {
+  localStorage.setItem(KEY_GEMINI, key.trim());
+}
 
 // Check email validity and match with scientist's name
 export function validateEmailMatch(email: string, firstName: string, lastName: string): { warning: boolean; reason?: string } {
   if (!email || !email.includes('@')) {
-    return { warning: true, reason: 'Ongeldig e-mailadres (ontbrekende @ of domein)' };
+    return { warning: true, reason: 'Geen geldig e-mailadres gedetecteerd' };
   }
 
   const cleanEmail = email.toLowerCase().trim();
@@ -14,7 +25,7 @@ export function validateEmailMatch(email: string, firstName: string, lastName: s
 
   const [localPart, domain] = cleanEmail.split('@');
   if (!domain || !domain.includes('.')) {
-    return { warning: true, reason: 'Domeinnaam van e-mailadres ontbreekt of is incompleet' };
+    return { warning: true, reason: 'Domeinnaam van e-mailadres ontbreekt' };
   }
 
   const firstInitial = cleanFirst.length > 0 ? cleanFirst[0] : '';
@@ -25,7 +36,7 @@ export function validateEmailMatch(email: string, firstName: string, lastName: s
   if (cleanFirst && cleanLast && !hasLast && !hasFirst && !hasInitialAndLast) {
     return {
       warning: true,
-      reason: `E-mail '${email}' bevat geen herkenbare voor- of achternaam van ${firstName} ${lastName}. Controleer a.u.b.`
+      reason: `E-mail '${email}' lijkt af te wijken van ${firstName} ${lastName}. Controleer a.u.b.`
     };
   }
 
@@ -52,12 +63,12 @@ export async function generateFieldCrops(imageSource: string | HTMLImageElement)
 
       // Bounding boxes matching the Miltenyi Biotec standard contact form layout
       const boxes = {
-        first_name: { x: 0.05, y: 0.14, w: 0.42, h: 0.07 },
-        last_name: { x: 0.45, y: 0.14, w: 0.48, h: 0.07 },
-        email: { x: 0.05, y: 0.20, w: 0.88, h: 0.06 },
-        institute: { x: 0.05, y: 0.26, w: 0.88, h: 0.06 },
-        department: { x: 0.05, y: 0.32, w: 0.88, h: 0.06 },
-        notes: { x: 0.05, y: 0.42, w: 0.90, h: 0.45 } // Full context of the research box!
+        first_name: { x: 0.04, y: 0.13, w: 0.44, h: 0.08 },
+        last_name: { x: 0.46, y: 0.13, w: 0.50, h: 0.08 },
+        email: { x: 0.04, y: 0.19, w: 0.92, h: 0.07 },
+        institute: { x: 0.04, y: 0.25, w: 0.92, h: 0.07 },
+        department: { x: 0.04, y: 0.31, w: 0.92, h: 0.07 },
+        notes: { x: 0.04, y: 0.42, w: 0.92, h: 0.45 } // Full context of the research box
       };
 
       const crops: Record<string, string> = {};
@@ -99,175 +110,210 @@ export async function generateFieldCrops(imageSource: string | HTMLImageElement)
   });
 }
 
-// 4 Distinct Real-World Test Profiles
-export const TEST_PROFILES = [
-  {
-    title: 'NKI Amsterdam — Dr. Sophie van den Berg',
-    description: 'CAR-T celproductie, MACSQuant Tyto sorter & autoMACS',
-    first_name: 'Dr. Sophie',
-    last_name: 'van den Berg',
-    email: 's.vdberg@nki.nl',
-    institute: 'NKI - Antoni van Leeuwenhoek',
-    department: 'Division of Immunology',
-    notes: 'Interested in MACSQuant Tyto cell sorter for sterile CAR-T cell manufacturing. Currently using flow cytometry with REAfinity antibodies. Needs quotation for autoMACS Pro separator next month.',
-    newsletter_opt_in: true,
-    confidence_flags: [
-      { field: 'notes', word: 'MACSQuant', confidence: 0.62, reason: 'Vakterm / hoofdlettercombinatie' },
-      { field: 'notes', word: 'REAfinity', confidence: 0.65, reason: 'Merkafsluiting Miltenyi' }
-    ]
-  },
-  {
-    title: 'INSERM Parijs — Prof. Marc Dubois',
-    description: 'Tumor weefsel dissociatie, gentleMACS Octo & TILs',
-    first_name: 'Prof. Marc',
-    last_name: 'Dubois',
-    email: 'm.dubois@inserm.fr',
-    institute: 'INSERM / Institut Curie',
-    department: 'Immunology & Cellular Assays',
-    notes: 'Testing gentleMACS Octo Dissociator for human tumor tissue dissociation before single-cell RNA-seq. Requires protocol for tumor infiltrating lymphocytes (TILs).',
-    newsletter_opt_in: true,
-    confidence_flags: [
-      { field: 'notes', word: 'gentleMACS', confidence: 0.58, reason: 'Ongebruikelijke hoofdletters' },
-      { field: 'notes', word: 'TILs', confidence: 0.68, reason: 'Afkorting' }
-    ]
-  },
-  {
-    title: 'Erasmus MC — Elena Rostova',
-    description: 'CliniMACS Prodigy consumable kits, demo aanvraag',
-    first_name: 'Elena',
-    last_name: 'Rostova',
-    email: 'elena.rostova@erasmusmc.nl',
-    institute: 'Erasmus MC',
-    department: 'Department of Hematology',
-    notes: 'Looking for CD3/CD28 T cell activation reagents and CliniMACS Prodigy consumable kits. Wants on-site product demonstration at Erasmus MC lab in November.',
-    newsletter_opt_in: false,
-    confidence_flags: [
-      { field: 'notes', word: 'CliniMACS', confidence: 0.64, reason: 'Hoofdlettercombinatie' }
-    ]
-  },
-  {
-    title: 'LUMC Leiden — Dr. Thomas Bakker (Met E-mail Warning)',
-    description: 'Testcase met afwijkende e-mail voor waarschuwingstest',
-    first_name: 'Dr. Thomas',
-    last_name: 'Bakker',
-    email: 'lab.research99@lumc.nl', // Does not match Thomas Bakker!
-    institute: 'LUMC',
-    department: 'Center for Infectious Diseases',
-    notes: 'Requires magnetic cell isolation kits for human PBMC separation. Wants evaluation sample of MicroBeads for CD4+ and CD8+ T cells.',
-    newsletter_opt_in: true,
-    confidence_flags: [
-      { field: 'notes', word: 'MicroBeads', confidence: 0.61, reason: 'Miltenyi handelsnaam' },
-      { field: 'notes', word: 'PBMC', confidence: 0.70, reason: 'Biomedische afkorting' }
-    ]
+// Clean extracted strings by stripping printed label prefixes
+function cleanFieldValue(raw: string, labelPrefixes: string[]): string {
+  let text = raw.replace(/\r?\n/g, ' ').trim();
+  for (const prefix of labelPrefixes) {
+    const reg = new RegExp(`^${prefix}\\s*[:*\\-\\s]*`, 'i');
+    text = text.replace(reg, '');
   }
-];
-
-// Generates an authentic canvas representation of the filled Miltenyi Contact Form
-export function renderSyntheticFormImage(profileIndex = 0): string {
-  const profile = TEST_PROFILES[profileIndex % TEST_PROFILES.length];
-  const canvas = document.createElement('canvas');
-  canvas.width = 1200;
-  canvas.height = 1700;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  // Background
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, 1200, 1700);
-
-  // Header Title
-  ctx.fillStyle = '#002B49';
-  ctx.font = 'bold 44px sans-serif';
-  ctx.fillText('Contact form', 80, 110);
-
-  // Logo text & emblem
-  ctx.fillStyle = '#002B49';
-  ctx.font = 'bold 36px sans-serif';
-  ctx.fillText('Miltenyi Biotec', 850, 110);
-
-  // Divider
-  ctx.strokeStyle = '#002B49';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(80, 150);
-  ctx.lineTo(1120, 150);
-  ctx.stroke();
-
-  // Field Labels (Printed text)
-  ctx.fillStyle = '#4B5563';
-  ctx.font = '22px sans-serif';
-  ctx.fillText('First Name*:', 80, 220);
-  ctx.fillText('Last Name*:', 600, 220);
-  ctx.fillText('Email*:', 80, 320);
-  ctx.fillText('University/Institution/Company:', 80, 420);
-  ctx.fillText('Department:', 80, 520);
-
-  // Handwritten fields (Blue ink pen style)
-  ctx.fillStyle = '#1D4ED8';
-  ctx.font = 'italic 28px "Comic Sans MS", "Caveat", "Segoe Print", cursive, sans-serif';
-  ctx.fillText(profile.first_name, 230, 220);
-  ctx.fillText(profile.last_name, 740, 220);
-  ctx.fillText(profile.email, 180, 320);
-  ctx.fillText(profile.institute, 450, 420);
-  ctx.fillText(profile.department, 240, 520);
-
-  // Big Section Header
-  ctx.fillStyle = '#111827';
-  ctx.font = 'bold 36px sans-serif';
-  ctx.fillText('How can we support you with your research?', 80, 660);
-
-  // Notes Box border
-  ctx.strokeStyle = '#1E293B';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(80, 700, 1040, 780);
-
-  // Handwritten sentences inside Notes box
-  ctx.fillStyle = '#1E3A8A';
-  ctx.font = 'italic 26px "Comic Sans MS", "Caveat", "Segoe Print", cursive, sans-serif';
-  
-  // Wrap notes text into lines
-  const words = profile.notes.split(' ');
-  let line = '';
-  let y = 760;
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > 960 && n > 0) {
-      ctx.fillText(line, 110, y);
-      line = words[n] + ' ';
-      y += 55;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, 110, y);
-
-  // Newsletter Checkbox
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(80, 1540, 26, 26);
-  if (profile.newsletter_opt_in) {
-    ctx.fillStyle = '#1E3A8A';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(84, 1552);
-    ctx.lineTo(92, 1562);
-    ctx.lineTo(104, 1544);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#374151';
-  ctx.font = '20px sans-serif';
-  ctx.fillText('Yes, I want to receive scientific news, product promotions... - sign me up for the newsletter', 120, 1560);
-
-  return canvas.toDataURL('image/jpeg', 0.9);
+  return text.trim();
 }
 
-// Process an image (either uploaded photo or synthetic demo)
+// Gemini Vision multimodal extraction (if API key is present)
+async function extractWithGemini(
+  base64Image: string,
+  apiKey: string
+): Promise<{
+  first_name: string;
+  last_name: string;
+  email: string;
+  institute: string;
+  department: string;
+  notes: string;
+  newsletter_opt_in: boolean;
+  confidence_flags: ConfidenceFlag[];
+} | null> {
+  try {
+    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+    const prompt = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form".
+Extract the handwritten information strictly verbatim into structured JSON.
+Do NOT paraphrase or invent information. Preserve abbreviations (like MACS, CAR-T, PBMC, REAfinity, etc.) exactly as written.
+
+The form has these sections:
+1. First Name*
+2. Last Name*
+3. Email*
+4. University/Institution/Company
+5. Department
+6. "How can we support you with your research?" (the big rectangle box)
+7. Newsletter checkbox at the bottom (checked or unchecked)
+
+Output ONLY valid raw JSON with this exact structure (no markdown, no backticks):
+{
+  "first_name": "...",
+  "last_name": "...",
+  "email": "...",
+  "institute": "...",
+  "department": "...",
+  "notes": "...",
+  "newsletter_opt_in": true,
+  "confidence_flags": [
+    { "field": "notes", "word": "example", "confidence": 0.6, "reason": "unclear writing" }
+  ]
+}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: 'image/jpeg',
+                data: cleanBase64
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1
+      }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      console.warn('Gemini vision API error:', res.statusText);
+      return null;
+    }
+
+    const data = await res.json();
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) return null;
+
+    const parsed = JSON.parse(candidateText.trim());
+    return {
+      first_name: parsed.first_name || '',
+      last_name: parsed.last_name || '',
+      email: parsed.email || '',
+      institute: parsed.institute || '',
+      department: parsed.department || '',
+      notes: parsed.notes || '',
+      newsletter_opt_in: !!parsed.newsletter_opt_in,
+      confidence_flags: parsed.confidence_flags || []
+    };
+  } catch (err) {
+    console.warn('Gemini extraction failed, falling back to Tesseract:', err);
+    return null;
+  }
+}
+
+// Client-side OCR extraction with Tesseract.js
+async function extractWithTesseract(
+  imageSource: string,
+  crops: { [key: string]: string | undefined }
+): Promise<{
+  first_name: string;
+  last_name: string;
+  email: string;
+  institute: string;
+  department: string;
+  notes: string;
+  newsletter_opt_in: boolean;
+  confidence_flags: ConfidenceFlag[];
+}> {
+  // If field crops exist, run OCR targeted per crop for higher accuracy!
+  let firstName = '';
+  let lastName = '';
+  let email = '';
+  let institute = '';
+  let department = '';
+  let notes = '';
+
+  const flags: ConfidenceFlag[] = [];
+
+  try {
+    // 1. OCR on individual crops
+    if (crops.first_name) {
+      const res = await Tesseract.recognize(crops.first_name, 'eng');
+      firstName = cleanFieldValue(res.data.text, ['first name', 'first', 'voornaam']);
+    }
+
+    if (crops.last_name) {
+      const res = await Tesseract.recognize(crops.last_name, 'eng');
+      lastName = cleanFieldValue(res.data.text, ['last name', 'last', 'achternaam']);
+    }
+
+    if (crops.email) {
+      const res = await Tesseract.recognize(crops.email, 'eng');
+      const text = cleanFieldValue(res.data.text, ['email', 'e-mail']);
+      const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      email = match ? match[0] : text;
+    }
+
+    if (crops.institute) {
+      const res = await Tesseract.recognize(crops.institute, 'eng');
+      institute = cleanFieldValue(res.data.text, ['university', 'institution', 'company', 'instituut']);
+    }
+
+    if (crops.department) {
+      const res = await Tesseract.recognize(crops.department, 'eng');
+      department = cleanFieldValue(res.data.text, ['department', 'afdeling']);
+    }
+
+    if (crops.notes) {
+      const res = await Tesseract.recognize(crops.notes, 'eng');
+      notes = cleanFieldValue(res.data.text, [
+        'how can we support you with your research',
+        'how can we support',
+        'research'
+      ]);
+
+      // Collect low confidence words from Tesseract
+      const wordsList = (res.data as any).words || [];
+      wordsList.forEach((w: any) => {
+        if (w.confidence < 70 && w.text && w.text.length > 2) {
+          flags.push({
+            field: 'notes',
+            word: w.text,
+            confidence: (w.confidence || 50) / 100,
+            reason: 'Lage herkenningszekerheid'
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Individual crop OCR failed, attempting full page recognition:', err);
+    // Fallback: run on whole image
+    const fullRes = await Tesseract.recognize(imageSource, 'eng');
+    notes = fullRes.data.text;
+  }
+
+  return {
+    first_name: firstName,
+    last_name: lastName,
+    email: email,
+    institute: institute,
+    department: department,
+    notes: notes,
+    newsletter_opt_in: false,
+    confidence_flags: flags
+  };
+}
+
+// Main entry point for processing any photographed/uploaded form
 export async function processFormImage(
   rawImageDataUrl: string,
   campaignId: string,
-  collectedBy: string,
-  profileIndex = 0
+  collectedBy: string
 ): Promise<Lead> {
   // 1. Resize/compress image to protect mobile browser memory
   const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl);
@@ -275,27 +321,48 @@ export async function processFormImage(
   // 2. Generate field crops
   const crops = await generateFieldCrops(safeImageDataUrl);
 
-  // 3. Extract data from profile
-  const profile = TEST_PROFILES[profileIndex % TEST_PROFILES.length];
-  const emailCheck = validateEmailMatch(profile.email, profile.first_name, profile.last_name);
-  const crmMatch = matchCrmAccount(profile.institute, profile.department);
+  // 3. Check if Gemini API Key is available for high-accuracy vision AI
+  const geminiKey = getSavedGeminiKey();
+  let extracted: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    institute: string;
+    department: string;
+    notes: string;
+    newsletter_opt_in: boolean;
+    confidence_flags: ConfidenceFlag[];
+  } | null = null;
+
+  if (geminiKey) {
+    extracted = await extractWithGemini(safeImageDataUrl, geminiKey);
+  }
+
+  // 4. If no Gemini or Gemini failed, use Tesseract client-side OCR
+  if (!extracted) {
+    extracted = await extractWithTesseract(safeImageDataUrl, crops);
+  }
+
+  // 5. Run validation & CRM matching
+  const emailCheck = validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
+  const crmMatch = matchCrmAccount(extracted.institute, extracted.department);
 
   const newLead: Lead = {
     id: crypto.randomUUID(),
     campaign_id: campaignId,
     collected_by: collectedBy,
-    first_name: profile.first_name,
-    last_name: profile.last_name,
-    email: profile.email,
-    institute: profile.institute,
-    department: profile.department,
-    notes: profile.notes,
-    newsletter_opt_in: profile.newsletter_opt_in,
+    first_name: extracted.first_name,
+    last_name: extracted.last_name,
+    email: extracted.email,
+    institute: extracted.institute,
+    department: extracted.department,
+    notes: extracted.notes,
+    newsletter_opt_in: extracted.newsletter_opt_in,
     account_id: crmMatch?.account.id,
     matched_account_level: crmMatch?.matchLevel || null,
     email_warning: emailCheck.warning,
     email_warning_reason: emailCheck.reason,
-    confidence_flags: profile.confidence_flags,
+    confidence_flags: extracted.confidence_flags,
     field_crops: crops,
     image_url: safeImageDataUrl,
     status: 'draft',
@@ -305,16 +372,4 @@ export async function processFormImage(
   };
 
   return newLead;
-}
-
-// Batch generator for loading initial test data instantly
-export async function generateSampleLeads(campaignId: string, repName: string): Promise<Lead[]> {
-  const list: Lead[] = [];
-  for (let i = 0; i < TEST_PROFILES.length; i++) {
-    const syntheticImg = renderSyntheticFormImage(i);
-    const lead = await processFormImage(syntheticImg, campaignId, repName, i);
-    lead.status = 'reviewed';
-    list.push(lead);
-  }
-  return list;
 }

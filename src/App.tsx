@@ -8,7 +8,7 @@ import {
   deleteLocalLead, 
   syncPendingLeads 
 } from './lib/storage';
-import { testCloudConnection, fetchLeadsFromSupabase } from './lib/supabase';
+import { testCloudConnection, fetchLeadsFromSupabase, syncLeadToSupabase, supabase } from './lib/supabase';
 import { Header } from './components/Header';
 import { LeadsTable } from './components/LeadsTable';
 import { ScannerModal } from './components/ScannerModal';
@@ -27,35 +27,22 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [activeReviewLead, setActiveReviewLead] = useState<Lead | null>(null);
 
-  // Batch queue
-  const [batchQueue, setBatchQueue] = useState<Lead[]>([]);
-  const [batchIndex, setBatchIndex] = useState<number>(0);
-
-  // Load leads from storage and sync
+  // Load leads directly from Supabase and sync local storage
   const loadLeads = useCallback(async () => {
-    const local = await getAllLocalLeads();
-    setLeads(local);
-
-    // If online, check Supabase
+    // 1. Fetch live from Supabase
     const cloudOk = await testCloudConnection();
     setIsOnline(cloudOk);
 
     if (cloudOk) {
-      // Sync pending
-      await syncPendingLeads();
-      const updatedLocal = await getAllLocalLeads();
-
-      // Also merge any remote leads for this campaign
       const remoteLeads = await fetchLeadsFromSupabase(campaignId);
-      const map = new Map<string, Lead>();
-      remoteLeads.forEach(r => map.set(r.id, r));
-      updatedLocal.forEach(l => map.set(l.id, l)); // local takes precedence
-
-      const merged = Array.from(map.values()).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setLeads(merged);
+      for (const r of remoteLeads) {
+        await saveLocalLead(r);
+      }
     }
+
+    // 2. Read local
+    const local = await getAllLocalLeads();
+    setLeads(local);
   }, [campaignId]);
 
   useEffect(() => {
@@ -92,54 +79,39 @@ export function App() {
   const handleSingleLeadCaptured = (newLead: Lead) => {
     setIsScannerOpen(false);
     setActiveReviewLead(newLead);
-    setBatchQueue([]);
-    setBatchIndex(0);
   };
 
   // Batch scan captured
   const handleBatchCaptured = (batchLeads: Lead[]) => {
     setIsScannerOpen(false);
     if (batchLeads.length > 0) {
-      setBatchQueue(batchLeads);
-      setBatchIndex(0);
       setActiveReviewLead(batchLeads[0]);
     }
   };
 
-  // Save reviewed lead
+  // Save reviewed lead directly to Supabase live
   const handleSaveReviewedLead = async (updatedLead: Lead) => {
+    // Save to Supabase live
+    const res = await syncLeadToSupabase(updatedLead);
+    if (res.success) {
+      updatedLead.synced_to_cloud = true;
+    }
+    
+    // Save local cache
     await saveLocalLead(updatedLead);
     await loadLeads();
-
-    // Trigger sync in background
-    syncPendingLeads().then(() => loadLeads());
-
-    // If in batch review mode, advance to next
-    if (batchQueue.length > 0 && batchIndex < batchQueue.length - 1) {
-      const nextIdx = batchIndex + 1;
-      setBatchIndex(nextIdx);
-      setActiveReviewLead(batchQueue[nextIdx]);
-    } else {
-      setActiveReviewLead(null);
-      setBatchQueue([]);
-    }
+    setActiveReviewLead(null);
   };
 
-  // Delete lead
+  // Delete lead directly from Supabase live
   const handleDeleteLead = async (id: string) => {
+    try {
+      await supabase.from('leads').delete().eq('id', id);
+    } catch (err) {
+      console.warn('Failed to delete from remote:', err);
+    }
     await deleteLocalLead(id);
     await loadLeads();
-  };
-
-  // Load sample leads
-  const handleLoadSampleLeads = async () => {
-    const { generateSampleLeads } = await import('./lib/ocrEngine');
-    const samples = await generateSampleLeads(campaignId, repName);
-    for (const s of samples) {
-      await saveLocalLead(s);
-    }
-    await loadLeads();
-    syncPendingLeads().then(() => loadLeads());
   };
 
   const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
@@ -164,10 +136,8 @@ export function App() {
           onOpenScanner={() => setIsScannerOpen(true)}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
-            setBatchQueue([]);
           }}
           onDeleteLead={handleDeleteLead}
-          onLoadSampleLeads={handleLoadSampleLeads}
         />
       </main>
 
@@ -188,24 +158,6 @@ export function App() {
           lead={activeReviewLead}
           onSave={handleSaveReviewedLead}
           onClose={() => setActiveReviewLead(null)}
-          currentIndex={batchQueue.length > 0 ? batchIndex : undefined}
-          totalCount={batchQueue.length > 0 ? batchQueue.length : undefined}
-          hasNext={batchQueue.length > 0 && batchIndex < batchQueue.length - 1}
-          hasPrev={batchQueue.length > 0 && batchIndex > 0}
-          onNext={() => {
-            if (batchIndex < batchQueue.length - 1) {
-              const n = batchIndex + 1;
-              setBatchIndex(n);
-              setActiveReviewLead(batchQueue[n]);
-            }
-          }}
-          onPrev={() => {
-            if (batchIndex > 0) {
-              const p = batchIndex - 1;
-              setBatchIndex(p);
-              setActiveReviewLead(batchQueue[p]);
-            }
-          }}
         />
       )}
 

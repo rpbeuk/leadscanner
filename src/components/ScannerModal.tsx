@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, X, Play, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, Loader2 } from 'lucide-react';
 import type { Lead } from '../types';
-import { processFormImage, renderSyntheticFormImage } from '../lib/ocrEngine';
+import { processFormImage } from '../lib/ocrEngine';
 
 interface ScannerModalProps {
   campaignId: string;
@@ -42,7 +42,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Camera access error:', err);
-      setCameraError('Camera niet geopend. Gebruik de fotoupload of de testknop hieronder.');
+      setCameraError('Camera niet geopend in browser. Gebruik de fotoupload-knop hieronder om een foto van het formulier te kiezen.');
       setCameraActive(false);
     }
   };
@@ -65,10 +65,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   }, []);
 
   // Process captured image
-  const handleImageCaptured = async (dataUrl: string, profileIdx = 0) => {
+  const handleImageCaptured = async (dataUrl: string) => {
     setIsProcessing(true);
     try {
-      const lead = await processFormImage(dataUrl, campaignId, repName, profileIdx);
+      const lead = await processFormImage(dataUrl, campaignId, repName);
       setIsProcessing(false);
       stopCamera();
       onLeadCaptured(lead);
@@ -106,14 +106,6 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  // Trigger Demo Scan
-  const triggerDemoScan = async () => {
-    setIsProcessing(true);
-    const randomIdx = Math.floor(Math.random() * 4);
-    const dataUrl = renderSyntheticFormImage(randomIdx);
-    await handleImageCaptured(dataUrl, randomIdx);
   };
 
   return (
@@ -170,18 +162,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg"
               >
                 <Upload className="w-4 h-4" />
                 <span>Foto van formulier uploaden</span>
-              </button>
-              <button
-                type="button"
-                onClick={triggerDemoScan}
-                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <Play className="w-3.5 h-3.5 text-orange-400" />
-                <span>Simuleer test-scan</span>
               </button>
             </div>
           </div>
@@ -192,13 +176,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center text-white z-20">
             <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-3" />
             <p className="text-sm font-semibold">Formulier verwerken...</p>
-            <p className="text-xs text-slate-400 mt-0.5">Uitsnedes maken & CRM controleren</p>
+            <p className="text-xs text-slate-400 mt-0.5">Uitsnedes maken & velden herkennen</p>
           </div>
         )}
       </div>
 
-      {/* Bottom Shutter Controls (Clean iOS style) */}
-      <div className="px-8 py-6 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between z-10">
+      {/* Bottom Shutter Controls */}
+      <div className="px-8 py-6 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-around z-10">
         {/* Upload Button */}
         <input
           ref={fileInputRef}
@@ -222,22 +206,14 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           disabled={isProcessing}
           onClick={capturePhoto}
           className="w-18 h-18 rounded-full bg-white p-1 shadow-lg active:scale-95 transition-transform"
+          title="Maak foto"
         >
           <div className="w-16 h-16 rounded-full bg-orange-600 hover:bg-orange-500 flex items-center justify-center text-white">
             <Camera className="w-7 h-7" />
           </div>
         </button>
 
-        {/* Quick Demo Test Button */}
-        <button
-          type="button"
-          disabled={isProcessing}
-          onClick={triggerDemoScan}
-          className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-orange-400 transition-colors flex items-center justify-center"
-          title="Test scan"
-        >
-          <Play className="w-5 h-5" />
-        </button>
+        <div className="w-12 h-12" /> {/* Balancing spacer */}
       </div>
     </div>
   );

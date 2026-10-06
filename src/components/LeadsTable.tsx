@@ -8,8 +8,7 @@ import {
   AlertTriangle, 
   Building, 
   Trash2, 
-  ChevronRight,
-  Sparkles
+  ChevronRight
 } from 'lucide-react';
 import { exportLeadsToExcel, openMarketingMailClient } from '../lib/excelExport';
 
@@ -20,7 +19,6 @@ interface LeadsTableProps {
   onOpenScanner: () => void;
   onSelectLead: (lead: Lead) => void;
   onDeleteLead: (id: string) => void;
-  onLoadSampleLeads: () => void;
 }
 
 export const LeadsTable: React.FC<LeadsTableProps> = ({
@@ -29,8 +27,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   repName,
   onOpenScanner,
   onSelectLead,
-  onDeleteLead,
-  onLoadSampleLeads
+  onDeleteLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -56,11 +53,11 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             Contactformulieren
           </h1>
           <p className="text-xs text-slate-500">
-            {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} geregistreerd voor <span className="font-semibold text-slate-700">{activeCampaignId}</span>
+            {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} in database ({activeCampaignId})
           </p>
         </div>
 
-        {/* Export & Mail Actions (Discrete clean buttons) */}
+        {/* Export & Mail Actions */}
         {campaignLeads.length > 0 && (
           <div className="flex items-center gap-1.5">
             <button
@@ -94,7 +91,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Zoek lead op naam, instituut of trefwoord..."
+            placeholder="Zoek in database..."
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm focus:ring-2 focus:ring-[#002B49] focus:border-transparent shadow-sm"
           />
         </div>
@@ -107,28 +104,18 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-3 text-orange-600">
               <Camera className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-800 mb-1">Geen formulieren in deze sessie</h3>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">Geen formulieren in database</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mb-6">
-              Maak een foto van een papieren formulier om de gegevens automatisch in te lezen.
+              Maak een foto van een ingevuld Miltenyi contactformulier om de gegevens in te lezen.
             </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
-              <button
-                type="button"
-                onClick={onOpenScanner}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md inline-flex items-center justify-center gap-1.5"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Formulier Scannen</span>
-              </button>
-              <button
-                type="button"
-                onClick={onLoadSampleLeads}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs inline-flex items-center justify-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-                <span>Laad Voorbeeld (Test)</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onOpenScanner}
+              className="px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Formulier Scannen</span>
+            </button>
           </div>
         ) : (
           filteredLeads.map((lead) => (
@@ -141,7 +128,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 {/* Name & Indicators */}
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900 text-sm group-hover:text-blue-900 truncate">
-                    {lead.first_name} {lead.last_name}
+                    {lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Naamloos formulier'}
                   </span>
                   {lead.email_warning && (
                     <span title="Controleer e-mailadres" className="shrink-0">
@@ -177,7 +164,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 )}
               </div>
 
-              {/* Right Side: Arrow & Delete on desktop hover */}
+              {/* Right Side: Arrow & Delete */}
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
@@ -200,7 +187,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       </div>
 
       {/* Floating Bottom Bar: Single, Focused Primary Action */}
-      <div className="fixed bottom-4 inset-x-0 flex justify-center px-4 pointer-events-none z-30">
+      <div className="fixed bottom-5 inset-x-0 flex justify-center px-4 pointer-events-none z-30">
         <button
           type="button"
           onClick={onOpenScanner}
