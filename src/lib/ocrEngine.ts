@@ -159,7 +159,10 @@ async function extractWithGemini(
   apiKey: string
 ): Promise<{ data?: Extracted; error?: string }> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+  // Tried in order; on 503/429 (overload) we back off briefly and fall through to the next model
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+  const urlFor = (model: string) =>
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const payload = {
     contents: [{ parts: [{ text: GEMINI_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } }] }],
     generationConfig: {
@@ -172,46 +175,49 @@ async function extractWithGemini(
   };
 
   let lastError = 'onbekende fout';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30000)
-      });
+  for (const model of MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(urlFor(model), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(25000)
+        });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
-        // Retry only on rate limit / server errors
-        if (res.status === 429 || res.status >= 500) {
-          await new Promise((r) => setTimeout(r, 1000));
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
+          const overloaded = res.status === 429 || res.status >= 500;
+          if (!overloaded) return { error: lastError }; // bad key / bad request: no point retrying
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
           continue;
         }
-        return { error: lastError };
-      }
 
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) return { error: 'Gemini gaf geen resultaat terug (geblokkeerd of leeg)' };
-
-      const parsed = JSON.parse(text.trim());
-      return {
-        data: {
-          first_name: parsed.first_name || '',
-          last_name: parsed.last_name || '',
-          email: parsed.email || '',
-          institute: parsed.institute || '',
-          department: parsed.department || '',
-          notes: parsed.notes || '',
-          newsletter_opt_in: !!parsed.newsletter_opt_in,
-          confidence_flags: parsed.confidence_flags || [],
-          boxes: parsed.boxes || {}
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+          lastError = 'Gemini gaf geen resultaat terug (geblokkeerd of leeg)';
+          break; // try next model
         }
-      };
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
+
+        const parsed = JSON.parse(text.trim());
+        return {
+          data: {
+            first_name: parsed.first_name || '',
+            last_name: parsed.last_name || '',
+            email: parsed.email || '',
+            institute: parsed.institute || '',
+            department: parsed.department || '',
+            notes: parsed.notes || '',
+            newsletter_opt_in: !!parsed.newsletter_opt_in,
+            confidence_flags: parsed.confidence_flags || [],
+            boxes: parsed.boxes || {}
+          }
+        };
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+      }
     }
   }
   return { error: lastError };
