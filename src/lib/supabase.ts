@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Lead, Campaign } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dpcickhcpoqjtetoksaj.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_M6DlmRYQ1tMH6Zk0WfGofQ_E83jzEGn';
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dpcickhcpoqjtetoksaj.supabase.co';
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_M6DlmRYQ1tMH6Zk0WfGofQ_E83jzEGn';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

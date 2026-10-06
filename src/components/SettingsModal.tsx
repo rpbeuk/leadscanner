@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Database, RefreshCw, User, Tag, ShieldCheck } from 'lucide-react';
 import { saveRepName, saveCampaignId } from '../lib/storage';
-import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey } from '../lib/ocrEngine';
+import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
@@ -26,6 +26,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [campaignId, setCampaignId] = useState(currentCampaignId);
   const [claudeKey, setClaudeKey] = useState(getSavedClaudeKey());
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
+  const [accessCode, setAccessCode] = useState(getSavedAccessCode());
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
@@ -34,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     saveCampaignId(campaignId);
     saveClaudeKey(claudeKey);
     saveGeminiKey(geminiKey);
+    saveAccessCode(accessCode);
     onUpdate(repName, campaignId);
     setSavedNotice(true);
     setTimeout(() => {
@@ -104,7 +106,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* OCR API keys */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API-sleutel (voorkeur)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Toegangscode Azure OCR (voorkeur)</label>
+              <input
+                type="password"
+                autoComplete="off"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
+                placeholder="code uit Supabase-secret SCAN_ACCESS_CODE"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API-sleutel (reserve 1)</label>
               <input
                 type="password"
                 autoComplete="off"
@@ -115,7 +128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API-sleutel (reserve)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API-sleutel (reserve 2)</label>
               <input
                 type="password"
                 autoComplete="off"
@@ -126,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
             <p className="text-[11px] text-slate-500">
-              Sleutels worden alleen op deze telefoon bewaard. Is er een Claude-sleutel, dan wordt die gebruikt; anders Gemini.
+              Sleutels worden alleen op deze telefoon bewaard. Volgorde: Azure, dan Claude, dan Gemini; de eerste die lukt wordt gebruikt.
             </p>
           </div>
 

@@ -1,6 +1,7 @@
 import type { Lead, ConfidenceFlag } from '../types';
 import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
+import { supabaseUrl, supabaseAnonKey } from './supabase';
 
 const KEY_GEMINI = 'miltenyi_gemini_api_key';
 
@@ -10,6 +11,16 @@ export function getSavedGeminiKey(): string {
 
 export function saveGeminiKey(key: string): void {
   localStorage.setItem(KEY_GEMINI, key.trim());
+}
+
+const KEY_ACCESS = 'miltenyi_scan_access_code';
+
+export function getSavedAccessCode(): string {
+  return localStorage.getItem(KEY_ACCESS) || '';
+}
+
+export function saveAccessCode(code: string): void {
+  localStorage.setItem(KEY_ACCESS, code.trim());
 }
 
 const KEY_CLAUDE = 'miltenyi_claude_api_key';
@@ -348,6 +359,42 @@ async function extractWithClaude(
   return { error: lastError };
 }
 
+// Azure OpenAI via the "scan-form" Supabase Edge Function (the Azure key stays server-side)
+async function extractWithAzure(
+  base64Image: string,
+  accessCode: string
+): Promise<{ data?: Extracted; error?: string }> {
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/scan-form`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        apikey: supabaseAnonKey,
+        'x-access-code': accessCode
+      },
+      body: JSON.stringify({ image: base64Image }),
+      signal: AbortSignal.timeout(55000)
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body) return { error: `Azure ${res.status}: ${body?.error || res.statusText}` };
+    return {
+      data: {
+        first_name: body.first_name || '',
+        last_name: body.last_name || '',
+        email: body.email || '',
+        institute: body.institute || '',
+        department: body.department || '',
+        notes: body.notes || '',
+        newsletter_opt_in: !!body.newsletter_opt_in,
+        confidence_flags: body.confidence_flags || [],
+        boxes: body.boxes || {}
+      }
+    };
+  } catch (err) {
+    return { error: `Azure: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
 // Main entry point for processing any photographed/uploaded form
 export async function processFormImage(
   rawImageDataUrl: string,
@@ -360,23 +407,37 @@ export async function processFormImage(
   // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
   //    produces noise on handwriting (and mixes in printed labels), so it is not used
   //    to fill fields; the user gets an explicit reason and enters the data manually.
+  const accessCode = getSavedAccessCode();
   const claudeKey = getSavedClaudeKey();
   const geminiKey = getSavedGeminiKey();
   let extracted: Extracted = {
     first_name: '', last_name: '', email: '', institute: '', department: '',
     notes: '', newsletter_opt_in: false, confidence_flags: [], boxes: {}
   };
-  let engineError: string | undefined;
+  const errors: string[] = [];
+  let ok = false;
 
-  if (!claudeKey && !geminiKey) {
-    engineError = 'Geen API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.';
-  } else {
-    const result = claudeKey
-      ? await extractWithClaude(safeImageDataUrl, claudeKey)
-      : await extractWithGemini(safeImageDataUrl, geminiKey);
-    if (result.data) extracted = result.data;
-    else engineError = `Automatisch uitlezen mislukt (${result.error}). Vul de velden handmatig in.`;
+  // Order: Azure (server-side, stable) -> Claude -> Gemini. First success wins.
+  const attempts: Array<() => Promise<{ data?: Extracted; error?: string }>> = [];
+  if (accessCode) attempts.push(() => extractWithAzure(safeImageDataUrl, accessCode));
+  if (claudeKey) attempts.push(() => extractWithClaude(safeImageDataUrl, claudeKey));
+  if (geminiKey) attempts.push(() => extractWithGemini(safeImageDataUrl, geminiKey));
+
+  for (const attempt of attempts) {
+    const result = await attempt();
+    if (result.data) {
+      extracted = result.data;
+      ok = true;
+      break;
+    }
+    if (result.error) errors.push(result.error);
   }
+
+  const engineError = ok
+    ? undefined
+    : attempts.length === 0
+      ? 'Geen toegangscode of API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.'
+      : `Automatisch uitlezen mislukt (${errors.join(' | ')}). Vul de velden handmatig in.`;
 
   // 4. Normalise email, then run validation & CRM matching
   extracted.email = extracted.email.replace(/\s+/g, '').toLowerCase();
