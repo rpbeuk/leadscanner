@@ -131,6 +131,26 @@ export function App() {
     await loadLeads();
   };
 
+  // Load sample leads
+  const handleLoadSampleLeads = async () => {
+    const { generateSampleLeads } = await import('./lib/ocrEngine');
+    const samples = await generateSampleLeads(campaignId, repName);
+    for (const s of samples) {
+      await saveLocalLead(s);
+    }
+    await loadLeads();
+    syncPendingLeads().then(() => loadLeads());
+  };
+
+  // Clear all leads
+  const handleClearAllLeads = async () => {
+    if (!confirm('Weet je zeker dat je alle lokale leads wilt wissen?')) return;
+    for (const l of leads) {
+      await deleteLocalLead(l.id);
+    }
+    await loadLeads();
+  };
+
   const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
 
   return (
@@ -158,6 +178,8 @@ export function App() {
             setBatchQueue([]);
           }}
           onDeleteLead={handleDeleteLead}
+          onLoadSampleLeads={handleLoadSampleLeads}
+          onClearAllLeads={handleClearAllLeads}
         />
       </main>
 

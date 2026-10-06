@@ -22,6 +22,8 @@ interface LeadsTableProps {
   onOpenScanner: () => void;
   onSelectLead: (lead: Lead) => void;
   onDeleteLead: (id: string) => void;
+  onLoadSampleLeads: () => void;
+  onClearAllLeads: () => void;
 }
 
 export const LeadsTable: React.FC<LeadsTableProps> = ({
@@ -30,7 +32,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   repName,
   onOpenScanner,
   onSelectLead,
-  onDeleteLead
+  onDeleteLead,
+  onLoadSampleLeads,
+  onClearAllLeads
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCampaign, setFilterCampaign] = useState<string>(activeCampaignId);
@@ -175,14 +179,23 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
               Tik op de oranje knop om een papieren Miltenyi contactformulier te fotograferen.
             </p>
-            <button
-              type="button"
-              onClick={onOpenScanner}
-              className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center gap-1.5"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Start Eerste Scan</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+              <button
+                type="button"
+                onClick={onOpenScanner}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-1.5"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Start Eerste Scan</span>
+              </button>
+              <button
+                type="button"
+                onClick={onLoadSampleLeads}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 font-bold text-xs sm:text-sm shadow-sm inline-flex items-center justify-center gap-1.5"
+              >
+                <span>⚡ Laad 4 Testformulieren</span>
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -374,6 +387,24 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Test Helper Footer */}
+            <div className="p-3 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <button
+                type="button"
+                onClick={onLoadSampleLeads}
+                className="font-semibold text-blue-900 hover:text-blue-700 flex items-center gap-1"
+              >
+                <span>⚡ + Testleads Toevoegen</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClearAllLeads}
+                className="text-slate-400 hover:text-rose-600 transition-colors"
+              >
+                Wis alle leads
+              </button>
             </div>
           </>
         )}

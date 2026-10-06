@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Layers, X, Play, Loader2 } from 'lucide-react';
+import { Camera, Upload, Layers, X, Play, Loader2, Sparkles } from 'lucide-react';
 import type { Lead, ScanBatchItem } from '../types';
-import { processFormImage } from '../lib/ocrEngine';
+import { processFormImage, renderSyntheticFormImage, TEST_PROFILES } from '../lib/ocrEngine';
 
 interface ScannerModalProps {
   campaignId: string;
@@ -23,6 +23,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [batchItems, setBatchItems] = useState<ScanBatchItem[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [selectedDemoIndex, setSelectedDemoIndex] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +46,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Camera access error:', err);
-      setCameraError('Geen toegang tot camera (of camera niet beschikbaar). Gebruik fotoupload of testknop.');
+      setCameraError('Geen directe camera beschikbaar in browser. Gebruik de fotoupload of de testknop hieronder.');
       setCameraActive(false);
     }
   };
@@ -67,43 +68,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     };
   }, []);
 
-  // Snap photo from video stream
-  const capturePhoto = async () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-    await handleImageCaptured(dataUrl);
-  };
-
-  // File upload handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (event.target?.result) {
-          await handleImageCaptured(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   // Process captured image
-  const handleImageCaptured = async (dataUrl: string) => {
+  const handleImageCaptured = async (dataUrl: string, profileIdx?: number) => {
     setIsProcessing(true);
     try {
+      const idx = profileIdx !== undefined ? profileIdx : selectedDemoIndex;
       if (mode === 'single') {
-        const lead = await processFormImage(dataUrl, campaignId, repName);
+        const lead = await processFormImage(dataUrl, campaignId, repName, idx);
         setIsProcessing(false);
         stopCamera();
         onLeadCaptured(lead);
@@ -131,64 +102,41 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     }
   };
 
-  // Trigger Instant Demo Scan
-  const triggerDemoScan = async () => {
-    setIsProcessing(true);
-    // Draw a synthetic representation of the Miltenyi Contact Form
+  // Snap photo from video stream
+  const capturePhoto = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = 1200;
-    canvas.height = 1700;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, 1200, 1700);
-      
-      // Header
-      ctx.fillStyle = '#002B49';
-      ctx.font = 'bold 44px sans-serif';
-      ctx.fillText('Contact form', 80, 120);
-
-      ctx.fillStyle = '#002B49';
-      ctx.font = 'bold 36px sans-serif';
-      ctx.fillText('Miltenyi Biotec', 850, 120);
-
-      // Divider
-      ctx.strokeStyle = '#002B49';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(80, 160);
-      ctx.lineTo(1120, 160);
-      ctx.stroke();
-
-      // Fields
-      ctx.fillStyle = '#333333';
-      ctx.font = '26px sans-serif';
-      ctx.fillText('First Name*:  Dr. Sophie', 80, 240);
-      ctx.fillText('Last Name*:  van den Berg', 600, 240);
-      ctx.fillText('Email*:  s.vdberg@nki.nl', 80, 340);
-      ctx.fillText('University/Institution/Company:  NKI - Antoni van Leeuwenhoek', 80, 440);
-      ctx.fillText('Department:  Division of Immunology', 80, 540);
-
-      ctx.font = 'bold 38px sans-serif';
-      ctx.fillText('How can we support you with your research?', 80, 680);
-
-      // Notes Box
-      ctx.strokeRect(80, 720, 1040, 750);
-      ctx.font = 'italic 28px serif';
-      ctx.fillStyle = '#111827';
-      ctx.fillText('Interested in MACSQuant Tyto cell sorter for sterile CAR-T cell manufacturing.', 110, 800);
-      ctx.fillText('Currently using flow cytometry with REAfinity antibodies.', 110, 860);
-      ctx.fillText('Needs quotation for autoMACS Pro separator next month.', 110, 920);
-
-      // Checkbox
-      ctx.strokeRect(80, 1550, 30, 30);
-      ctx.fillRect(85, 1555, 20, 20); // Checked
-      ctx.font = '22px sans-serif';
-      ctx.fillStyle = '#444444';
-      ctx.fillText('Yes, I want to receive scientific news, product promotions... - sign me up for newsletter', 130, 1575);
-    }
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
     await handleImageCaptured(dataUrl);
+  };
+
+  // File upload handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      if (event.target?.result) {
+        await handleImageCaptured(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Trigger Demo Scan with the selected profile
+  const triggerDemoScan = async (profileIdx: number) => {
+    setIsProcessing(true);
+    const dataUrl = renderSyntheticFormImage(profileIdx);
+    await handleImageCaptured(dataUrl, profileIdx);
   };
 
   const handleFinishBatch = () => {
@@ -210,25 +158,25 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex items-center gap-1 bg-blue-950 p-1 rounded-xl border border-blue-800">
+          <div className="flex items-center gap-1 bg-blue-950 p-1 rounded-xl border border-blue-800 shrink-0">
             <button
               type="button"
               onClick={() => setMode('single')}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
                 mode === 'single' ? 'bg-orange-600 text-white shadow' : 'text-blue-300 hover:text-white'
               }`}
             >
-              Enkele Scan
+              Enkel
             </button>
             <button
               type="button"
               onClick={() => setMode('batch')}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${
                 mode === 'batch' ? 'bg-orange-600 text-white shadow' : 'text-blue-300 hover:text-white'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Batch (Burst)</span>
+              <Layers className="w-3 h-3" />
+              <span>Batch</span>
             </button>
           </div>
 
@@ -244,7 +192,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
         </div>
 
         {/* Viewfinder & Controls */}
-        <div className="flex-1 bg-black relative flex flex-col items-center justify-center overflow-hidden min-h-[320px] sm:min-h-[420px]">
+        <div className="flex-1 bg-black relative flex flex-col items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[400px]">
           {/* Live Video */}
           <video
             ref={videoRef}
@@ -263,7 +211,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             </div>
 
             {/* Note box outline guideline */}
-            <div className="my-auto h-40 border border-white/40 rounded-lg flex items-center justify-center">
+            <div className="my-auto h-36 sm:h-40 border border-white/40 rounded-lg flex items-center justify-center">
               <span className="text-xs text-white/70 font-semibold bg-black/40 px-3 py-1 rounded">
                 Plaats "Research Support" veld hier
               </span>
@@ -276,25 +224,18 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
 
           {/* Camera Error / Fallback Card */}
           {(!cameraActive || cameraError) && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center text-white">
-              <Camera className="w-12 h-12 text-slate-400 mb-3" />
-              <p className="text-sm font-medium text-slate-300 max-w-sm mb-4">
-                {cameraError || 'Camera initialiseren... Zorg voor cameratoegang in je browser.'}
+            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+              <Camera className="w-10 h-10 text-slate-400 mb-2" />
+              <p className="text-xs sm:text-sm font-medium text-slate-300 max-w-sm mb-4">
+                {cameraError || 'Camera initialiseren...'}
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 <button
                   type="button"
-                  onClick={startCamera}
-                  className="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 text-xs font-semibold transition-colors"
-                >
-                  Opnieuw proberen
-                </button>
-                <button
-                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow"
                 >
-                  <Upload className="w-4 h-4" /> Foto uploaden
+                  <Upload className="w-4 h-4" /> Foto van Formulier Uploaden
                 </button>
               </div>
             </div>
@@ -305,7 +246,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             <div className="absolute inset-0 bg-slate-950/75 flex flex-col items-center justify-center text-white z-20">
               <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-2" />
               <p className="text-sm font-semibold">Handschrift analyseren & velden splitsen...</p>
-              <p className="text-xs text-slate-400 mt-1">Extractie van 7 velden + research notes</p>
+              <p className="text-xs text-slate-400 mt-1">Uitsnedes genereren en CRM-match bepalen</p>
             </div>
           )}
         </div>
@@ -337,14 +278,45 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           </div>
         )}
 
+        {/* Test Scenario Selector Bar */}
+        <div className="bg-blue-50/80 px-4 py-2.5 border-t border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-blue-950">
+            <Sparkles className="w-4 h-4 text-orange-600 shrink-0" />
+            <span>Kies Testscenario:</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-1 max-w-sm">
+            <select
+              value={selectedDemoIndex}
+              onChange={(e) => setSelectedDemoIndex(Number(e.target.value))}
+              className="w-full px-2.5 py-1.5 rounded-lg border border-blue-300 bg-white text-xs font-semibold text-slate-800"
+            >
+              {TEST_PROFILES.map((p, idx) => (
+                <option key={idx} value={idx}>
+                  #{idx + 1}: {p.title}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => triggerDemoScan(selectedDemoIndex)}
+              className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
+            >
+              <Play className="w-3.5 h-3.5" />
+              <span>Simuleer</span>
+            </button>
+          </div>
+        </div>
+
         {/* Bottom Shutter & Action Bar */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between gap-4">
           {/* File Upload Button */}
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
-            multiple={mode === 'batch'}
+            accept="image/*"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -368,17 +340,16 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             <Camera className="w-7 h-7" />
           </button>
 
-          {/* Instant Demo Test Button */}
+          {/* Direct Single Demo Action */}
           <button
             type="button"
-            onClick={triggerDemoScan}
+            onClick={() => triggerDemoScan(0)}
             disabled={isProcessing}
-            className="px-3.5 py-2.5 rounded-2xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-900 text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5"
-            title="Test met standaard Miltenyi contactformulier"
+            className="px-3 py-2 rounded-2xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-900 text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
           >
-            <Play className="w-4 h-4 text-orange-600" />
-            <span className="hidden sm:inline">Test met Formulier</span>
-            <span className="sm:hidden">Test</span>
+            <Play className="w-3.5 h-3.5 text-orange-600" />
+            <span className="hidden sm:inline">Snelle Test (NKI)</span>
+            <span className="sm:hidden">Snelle Test</span>
           </button>
         </div>
       </div>
