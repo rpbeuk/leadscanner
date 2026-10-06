@@ -167,7 +167,7 @@ export function App() {
           </div>
           <h3 className="text-base font-bold flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-orange-400" />
-            <span>Gemini Vision AI analyseert formulier...</span>
+            <span>AI analyseert formulier...</span>
           </h3>
           <p className="text-xs text-slate-300 mt-1 max-w-xs">
             Handschrift transcriberen, 7 velden extraheren en uitsnedes maken

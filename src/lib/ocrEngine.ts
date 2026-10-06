@@ -12,6 +12,16 @@ export function saveGeminiKey(key: string): void {
   localStorage.setItem(KEY_GEMINI, key.trim());
 }
 
+const KEY_CLAUDE = 'miltenyi_claude_api_key';
+
+export function getSavedClaudeKey(): string {
+  return localStorage.getItem(KEY_CLAUDE) || '';
+}
+
+export function saveClaudeKey(key: string): void {
+  localStorage.setItem(KEY_CLAUDE, key.trim());
+}
+
 // Check email validity and match with scientist's name
 export function validateEmailMatch(email: string, firstName: string, lastName: string): { warning: boolean; reason?: string } {
   if (!email || !email.includes('@')) {
@@ -231,6 +241,113 @@ async function extractWithGemini(
   return { error: lastError };
 }
 
+// Claude Vision extraction (test setup: key lives in this browser only; move behind a server proxy for production)
+async function extractWithClaude(
+  base64Image: string,
+  apiKey: string
+): Promise<{ data?: Extracted; error?: string }> {
+  const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const MODELS = ['claude-sonnet-5-5', 'claude-haiku-4-5-20251001'];
+  const schema = {
+    type: 'object',
+    properties: {
+      first_name: { type: 'string' },
+      last_name: { type: 'string' },
+      email: { type: 'string' },
+      institute: { type: 'string' },
+      department: { type: 'string' },
+      notes: { type: 'string' },
+      newsletter_opt_in: { type: 'boolean' },
+      boxes: {
+        type: 'object',
+        properties: Object.fromEntries(
+          FIELD_KEYS.map((k) => [k, { type: 'array', items: { type: 'integer' }, minItems: 4, maxItems: 4 }])
+        )
+      },
+      confidence_flags: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            field: { type: 'string' },
+            word: { type: 'string' },
+            confidence: { type: 'number' },
+            reason: { type: 'string' }
+          },
+          required: ['field', 'word', 'confidence']
+        }
+      }
+    },
+    required: ['first_name', 'last_name', 'email', 'institute', 'department', 'notes', 'newsletter_opt_in']
+  };
+
+  let lastError = 'onbekende fout';
+  for (const model of MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 2048,
+            temperature: 0,
+            tools: [{ name: 'record_form', description: 'Record the transcribed contact form', input_schema: schema }],
+            tool_choice: { type: 'tool', name: 'record_form' },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: cleanBase64 } },
+                  { type: 'text', text: GEMINI_PROMPT }
+                ]
+              }
+            ]
+          }),
+          signal: AbortSignal.timeout(40000)
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          lastError = `Claude ${res.status}: ${body?.error?.message || res.statusText}`;
+          if (res.status === 401 || res.status === 403) return { error: lastError };
+          if (res.status === 404 || res.status === 400) break; // model unavailable / bad request: next model
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
+          continue;
+        }
+
+        const data = await res.json();
+        const parsed = data?.content?.find((c: { type: string }) => c.type === 'tool_use')?.input;
+        if (!parsed) {
+          lastError = 'Claude gaf geen resultaat terug';
+          break;
+        }
+        return {
+          data: {
+            first_name: parsed.first_name || '',
+            last_name: parsed.last_name || '',
+            email: parsed.email || '',
+            institute: parsed.institute || '',
+            department: parsed.department || '',
+            notes: parsed.notes || '',
+            newsletter_opt_in: !!parsed.newsletter_opt_in,
+            confidence_flags: parsed.confidence_flags || [],
+            boxes: parsed.boxes || {}
+          }
+        };
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+  }
+  return { error: lastError };
+}
+
 // Main entry point for processing any photographed/uploaded form
 export async function processFormImage(
   rawImageDataUrl: string,
@@ -243,6 +360,7 @@ export async function processFormImage(
   // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
   //    produces noise on handwriting (and mixes in printed labels), so it is not used
   //    to fill fields; the user gets an explicit reason and enters the data manually.
+  const claudeKey = getSavedClaudeKey();
   const geminiKey = getSavedGeminiKey();
   let extracted: Extracted = {
     first_name: '', last_name: '', email: '', institute: '', department: '',
@@ -250,10 +368,12 @@ export async function processFormImage(
   };
   let engineError: string | undefined;
 
-  if (!geminiKey) {
-    engineError = 'Geen Gemini API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.';
+  if (!claudeKey && !geminiKey) {
+    engineError = 'Geen API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.';
   } else {
-    const result = await extractWithGemini(safeImageDataUrl, geminiKey);
+    const result = claudeKey
+      ? await extractWithClaude(safeImageDataUrl, claudeKey)
+      : await extractWithGemini(safeImageDataUrl, geminiKey);
     if (result.data) extracted = result.data;
     else engineError = `Automatisch uitlezen mislukt (${result.error}). Vul de velden handmatig in.`;
   }

@@ -269,7 +269,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-3" />
             <p className="text-sm font-bold flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-orange-400" />
-              <span>Gemini Vision AI analyseert formulier...</span>
+              <span>AI analyseert formulier...</span>
             </p>
             <p className="text-xs text-slate-400 mt-1">Uitsnedes genereren en 7 velden extraheren</p>
           </div>

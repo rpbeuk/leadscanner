@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Database, RefreshCw, User, Tag, ShieldCheck } from 'lucide-react';
 import { saveRepName, saveCampaignId } from '../lib/storage';
+import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
@@ -23,12 +24,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [repName, setRepName] = useState(currentRepName);
   const [campaignId, setCampaignId] = useState(currentCampaignId);
+  const [claudeKey, setClaudeKey] = useState(getSavedClaudeKey());
+  const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     saveRepName(repName);
     saveCampaignId(campaignId);
+    saveClaudeKey(claudeKey);
+    saveGeminiKey(geminiKey);
     onUpdate(repName, campaignId);
     setSavedNotice(true);
     setTimeout(() => {
@@ -93,6 +98,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
             <p className="text-[11px] text-slate-500 mt-1">
               Vast format: <b>U-</b> gevolgd door 5 cijfers (bijv. U-10245).
+            </p>
+          </div>
+
+          {/* OCR API keys */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API-sleutel (voorkeur)</label>
+              <input
+                type="password"
+                autoComplete="off"
+                value={claudeKey}
+                onChange={(e) => setClaudeKey(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
+                placeholder="sk-ant-..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API-sleutel (reserve)</label>
+              <input
+                type="password"
+                autoComplete="off"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
+                placeholder="AIza... of AQ...."
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Sleutels worden alleen op deze telefoon bewaard. Is er een Claude-sleutel, dan wordt die gebruikt; anders Gemini.
             </p>
           </div>
 
