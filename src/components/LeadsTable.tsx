@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Lead } from '../types';
 import { 
   FileSpreadsheet, 
@@ -8,7 +8,9 @@ import {
   AlertTriangle, 
   Building, 
   Trash2, 
-  ChevronRight
+  ChevronRight,
+  Upload,
+  ScanLine
 } from 'lucide-react';
 import { exportLeadsToExcel, openMarketingMailClient } from '../lib/excelExport';
 
@@ -16,6 +18,7 @@ interface LeadsTableProps {
   leads: Lead[];
   activeCampaignId: string;
   repName: string;
+  onDirectImageCaptured: (dataUrl: string) => void;
   onOpenScanner: () => void;
   onSelectLead: (lead: Lead) => void;
   onDeleteLead: (id: string) => void;
@@ -25,11 +28,28 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   leads,
   activeCampaignId,
   repName,
+  onDirectImageCaptured,
   onOpenScanner,
   onSelectLead,
   onDeleteLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        onDirectImageCaptured(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Filter leads for this campaign and search term
   const campaignLeads = leads.filter(l => l.campaign_id === activeCampaignId);
@@ -97,6 +117,25 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         </div>
       )}
 
+      {/* Hidden Native Device Inputs */}
+      {/* Direct Phone Camera: Prompts for permission instantly on iOS and Android */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {/* Photo Library / Files */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Main List */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden divide-y divide-slate-100">
         {filteredLeads.length === 0 ? (
@@ -108,14 +147,24 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <p className="text-xs text-slate-500 max-w-xs mx-auto mb-6">
               Maak een foto van een ingevuld Miltenyi contactformulier om de gegevens in te lezen.
             </p>
-            <button
-              type="button"
-              onClick={onOpenScanner}
-              className="px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Formulier Scannen</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Camera Openen & Scannen</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-500" />
+                <span>Foto uit bibliotheek</span>
+              </button>
+            </div>
           </div>
         ) : (
           filteredLeads.map((lead) => (
@@ -186,15 +235,36 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         )}
       </div>
 
-      {/* Floating Bottom Bar: Single, Focused Primary Action */}
-      <div className="fixed bottom-5 inset-x-0 flex justify-center px-4 pointer-events-none z-30">
+      {/* Floating Bottom Bar: Instant Camera Prompt + Gallery + Live Framing */}
+      <div className="fixed bottom-5 inset-x-0 flex justify-center items-center gap-3 px-4 pointer-events-none z-30">
+        {/* Gallery / Files */}
         <button
           type="button"
-          onClick={onOpenScanner}
-          className="pointer-events-auto px-6 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2 transition-all border-2 border-white ring-2 ring-orange-400/20"
+          onClick={() => galleryInputRef.current?.click()}
+          className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
+          title="Foto uit galerij uploaden"
+        >
+          <Upload className="w-5 h-5 text-slate-600" />
+        </button>
+
+        {/* Primary Scan Button (Prompts for camera permission & opens camera directly) */}
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="pointer-events-auto px-7 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2.5 transition-all border-2 border-white ring-2 ring-orange-400/20"
         >
           <Camera className="w-5 h-5" />
           <span>Scan Formulier</span>
+        </button>
+
+        {/* Live Viewfinder Modal */}
+        <button
+          type="button"
+          onClick={onOpenScanner}
+          className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
+          title="Open live zoeker kader"
+        >
+          <ScanLine className="w-5 h-5 text-slate-600" />
         </button>
       </div>
     </div>

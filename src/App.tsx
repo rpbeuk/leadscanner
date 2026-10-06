@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
 import type { Lead } from './types';
 import { 
   getSavedRepName, 
@@ -9,6 +10,7 @@ import {
   syncPendingLeads 
 } from './lib/storage';
 import { testCloudConnection, fetchLeadsFromSupabase, syncLeadToSupabase, supabase } from './lib/supabase';
+import { processFormImage } from './lib/ocrEngine';
 import { Header } from './components/Header';
 import { LeadsTable } from './components/LeadsTable';
 import { ScannerModal } from './components/ScannerModal';
@@ -21,6 +23,7 @@ export function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isProcessingDirectScan, setIsProcessingDirectScan] = useState<boolean>(false);
 
   // Modals
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
@@ -89,6 +92,20 @@ export function App() {
     }
   };
 
+  // Direct camera / gallery captured from table
+  const handleDirectImageCaptured = async (dataUrl: string) => {
+    setIsProcessingDirectScan(true);
+    try {
+      const lead = await processFormImage(dataUrl, campaignId, repName);
+      setIsProcessingDirectScan(false);
+      setActiveReviewLead(lead);
+    } catch (err) {
+      console.error('Scan processing error:', err);
+      setIsProcessingDirectScan(false);
+      alert('Er is een fout opgetreden bij het analyseren van het formulier. Probeer het opnieuw.');
+    }
+  };
+
   // Save reviewed lead directly to Supabase live
   const handleSaveReviewedLead = async (updatedLead: Lead) => {
     // Save to Supabase live
@@ -133,6 +150,7 @@ export function App() {
           leads={leads}
           activeCampaignId={campaignId}
           repName={repName}
+          onDirectImageCaptured={handleDirectImageCaptured}
           onOpenScanner={() => setIsScannerOpen(true)}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
@@ -140,6 +158,22 @@ export function App() {
           onDeleteLead={handleDeleteLead}
         />
       </main>
+
+      {/* Direct Scan Processing Overlay */}
+      {isProcessingDirectScan && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-3xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center mb-4">
+            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          </div>
+          <h3 className="text-base font-bold flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-orange-400" />
+            <span>Gemini Vision AI analyseert formulier...</span>
+          </h3>
+          <p className="text-xs text-slate-300 mt-1 max-w-xs">
+            Handschrift transcriberen, 7 velden extraheren en uitsnedes maken
+          </p>
+        </div>
+      )}
 
       {/* Scanner View Modal */}
       {isScannerOpen && (
