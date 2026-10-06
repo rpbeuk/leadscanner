@@ -181,7 +181,7 @@ async function extractWithGemini(
 ): Promise<{ data?: Extracted; error?: string }> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
   // Tried in order; on 503/429 (overload) we back off briefly, on 404 (retired model) we move on
-  const MODELS = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
+  const MODELS = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
   const urlFor = (model: string) =>
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const payload = {
@@ -391,7 +391,14 @@ async function extractWithAzure(
       }
     };
   } catch (err) {
-    return { error: `Azure: ${err instanceof Error ? err.message : String(err)}` };
+    const msg = err instanceof Error ? err.message : String(err);
+    // A network-level failure means the request never got an answer from the function:
+    // not deployed, "Verify JWT" still on (blocks the CORS preflight), or no connection.
+    return {
+      error: /failed to fetch|networkerror|load failed/i.test(msg)
+        ? 'Azure: function niet bereikt (niet uitgerold, "Verify JWT" staat aan, of geen internet)'
+        : `Azure: ${msg}`
+    };
   }
 }
 
