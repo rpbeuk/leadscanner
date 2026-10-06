@@ -3,6 +3,9 @@ import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
 import { supabaseUrl, supabaseAnonKey } from './supabase';
 
+// Engines that may be used. Azure only for now; flip to re-enable the others as fallback.
+export const ENGINES = { azure: true, claude: false, gemini: false };
+
 const KEY_GEMINI = 'miltenyi_gemini_api_key';
 
 export function getSavedGeminiKey(): string {
@@ -426,9 +429,9 @@ export async function processFormImage(
 
   // Order: Azure (server-side, stable) -> Claude -> Gemini. First success wins.
   const attempts: Array<() => Promise<{ data?: Extracted; error?: string }>> = [];
-  if (accessCode) attempts.push(() => extractWithAzure(safeImageDataUrl, accessCode));
-  if (claudeKey) attempts.push(() => extractWithClaude(safeImageDataUrl, claudeKey));
-  if (geminiKey) attempts.push(() => extractWithGemini(safeImageDataUrl, geminiKey));
+  if (ENGINES.azure && accessCode) attempts.push(() => extractWithAzure(safeImageDataUrl, accessCode));
+  if (ENGINES.claude && claudeKey) attempts.push(() => extractWithClaude(safeImageDataUrl, claudeKey));
+  if (ENGINES.gemini && geminiKey) attempts.push(() => extractWithGemini(safeImageDataUrl, geminiKey));
 
   for (const attempt of attempts) {
     const result = await attempt();

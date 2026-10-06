@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Database, RefreshCw, User, Tag, ShieldCheck } from 'lucide-react';
 import { saveRepName, saveCampaignId } from '../lib/storage';
-import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode } from '../lib/ocrEngine';
+import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
@@ -119,6 +119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="bijv. appel-tulp-4821"
               />
             </div>
+            {ENGINES.claude && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API-sleutel (reserve 1)</label>
               <input
@@ -130,6 +131,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="sk-ant-..."
               />
             </div>
+            )}
+            {ENGINES.gemini && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API-sleutel (reserve 2)</label>
               <input
@@ -141,8 +144,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="AIza... of AQ...."
               />
             </div>
+            )}
             <p className="text-[11px] text-slate-500">
-              Sleutels worden alleen op deze telefoon bewaard. Volgorde: Azure, dan Claude, dan Gemini; de eerste die lukt wordt gebruikt.
+              De toegangscode wordt alleen op deze telefoon bewaard. Uitlezen gaat via Azure.
             </p>
           </div>
 
