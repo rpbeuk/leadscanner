@@ -368,7 +368,7 @@ async function extractWithAzure(
   accessCode: string
 ): Promise<{ data?: Extracted; error?: string }> {
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/scan-form`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/smooth-worker`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
