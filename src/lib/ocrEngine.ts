@@ -405,6 +405,37 @@ async function extractWithAzure(
   }
 }
 
+// Safety net after extraction: strip printed labels the model may have copied along, and
+// rescue an email address that ended up in the wrong field.
+const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+const LABEL_PREFIXES: Record<string, RegExp> = {
+  first_name: /^\s*first\s*name\s*\*?\s*[:\-]?\s*/i,
+  last_name: /^\s*last\s*name\s*\*?\s*[:\-]?\s*/i,
+  email: /^\s*e-?mail\s*\*?\s*[:\-]?\s*/i,
+  institute: /^\s*(university\s*\/?\s*institution\s*\/?\s*company|university|institution|company)\s*[:\-]?\s*/i,
+  department: /^\s*department\s*[:\-]?\s*/i,
+  notes: /^\s*how can we support you with your research\s*\??\s*/i
+};
+
+function sanitizeExtracted(x: Extracted): Extracted {
+  const out = { ...x };
+  for (const key of Object.keys(LABEL_PREFIXES) as Array<keyof typeof LABEL_PREFIXES>) {
+    const k = key as 'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes';
+    out[k] = (out[k] || '').replace(LABEL_PREFIXES[key], '').trim();
+  }
+  if (!EMAIL_RE.test(out.email)) {
+    for (const k of ['notes', 'institute', 'department', 'first_name', 'last_name'] as const) {
+      const m = out[k].match(EMAIL_RE);
+      if (m) {
+        out.email = m[0];
+        out[k] = out[k].replace(m[0], '').trim();
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 // Main entry point for processing any photographed/uploaded form
 export async function processFormImage(
   rawImageDataUrl: string,
@@ -449,7 +480,8 @@ export async function processFormImage(
       ? 'Geen toegangscode of API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.'
       : `Automatisch uitlezen mislukt (${errors.join(' | ')}). Vul de velden handmatig in.`;
 
-  // 4. Normalise email, then run validation & CRM matching
+  // 4. Clean up, normalise email, then run validation & CRM matching
+  extracted = sanitizeExtracted(extracted);
   extracted.email = extracted.email.replace(/\s+/g, '').toLowerCase();
   const emailCheck = engineError
     ? { warning: true, reason: engineError }

@@ -17,16 +17,25 @@ const CORS = {
 
 const FIELDS = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
 
-const PROMPT = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form" (printed labels, handwritten answers).
-The photo may be rotated, skewed or taken at an angle. Locate the fields yourself.
+const PROMPT = `You receive a photo of a lead form in a fixed, standard layout (the "Miltenyi Biotec Contact Form"). Recognize the handwritten text and return it as JSON with these 7 fields: first_name, last_name, email, institute, department, notes, newsletter_opt_in.
 
-Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed labels
-(e.g. "First Name", "Email", "University/Institution/Company", "Department", "How can we support you with your research?").
-Do NOT paraphrase, correct or invent. Preserve abbreviations (MACS, CAR-T, PBMC, REAfinity, ...) and line breaks in the notes.
-If a field is empty or unreadable, return an empty string.
-Emails: no spaces, lowercase. Newsletter: true only if the checkbox is clearly ticked.
-For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box the whole handwritten text area inside the rectangle. Use an empty array for an empty field.
-In confidence_flags list individual words you are unsure about (confidence 0-1).`;
+LAYOUT (top to bottom). Each printed label is followed, to its right, by the handwritten answer for THAT label only:
+1. Title "Contact form" with the Miltenyi Biotec logo (ignore; a small handwritten number in a top corner is a form number: ignore it).
+2. One row with two fields: "First Name*" (left) -> first_name, and "Last Name*" (right of it) -> last_name.
+3. "Email*" -> email.
+4. "University/Institution/Company" -> institute.
+5. "Department" -> department.
+6. The printed question "How can we support you with your research?" followed by a large rectangle -> notes. Put ALL handwriting inside that rectangle in notes, in reading order, keeping line breaks. Text may stray over the rectangle's border: still notes.
+7. At the bottom a small checkbox with the text "Yes, I want to receive scientific news, product promotions... sign me up for the newsletter" -> newsletter_opt_in (true only if the checkbox is clearly ticked, otherwise false).
+
+RULES
+- Transcribe verbatim. Do NOT paraphrase, translate, correct spelling or invent. Keep abbreviations (MACS, CAR-T, PBMC, REAfinity, CD34+, LS, MS...) exactly as written.
+- NEVER copy printed text (labels, the question, the newsletter sentence) into any field.
+- Every answer belongs in exactly one field. If a field is empty or unreadable, return "" for it. Do not move text from one field to another to fill a gap.
+- email: no spaces, lowercase, must contain @ if legible.
+- The photo may be rotated, skewed or taken at an angle. Find the fields by their printed labels, not by fixed positions.
+- For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box all handwriting in the rectangle. Use an empty array for an empty field.
+- In confidence_flags list individual words you are unsure about (confidence 0-1).`;
 
 // Strict mode: every property required, no optional keys
 const SCHEMA = {
