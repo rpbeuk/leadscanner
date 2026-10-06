@@ -108,12 +108,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Toegangscode Azure OCR (voorkeur)</label>
               <input
-                type="password"
+                type="text"
                 autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
-                placeholder="code uit Supabase-secret SCAN_ACCESS_CODE"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-base font-mono text-slate-900"
+                placeholder="bijv. appel-tulp-4821"
               />
             </div>
             <div>
