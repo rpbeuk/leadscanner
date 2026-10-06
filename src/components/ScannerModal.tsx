@@ -200,13 +200,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md max-w-full overflow-x-hidden">
+      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] min-w-0">
         {/* Top Control Bar */}
-        <div className="bg-[#002B49] text-white px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-orange-400" />
-            <h2 className="font-bold text-base sm:text-lg">Miltenyi Formulier Scanner</h2>
+        <div className="bg-[#002B49] text-white px-3 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 shrink-0" />
+            <h2 className="font-bold text-sm sm:text-lg truncate">Formulier Scanner</h2>
           </div>
 
           {/* Mode Switcher */}
@@ -256,7 +256,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           />
 
           {/* Form Alignment Guidelines Overlay */}
-          <div className="absolute inset-6 sm:inset-10 border-2 border-dashed border-white/60 rounded-2xl pointer-events-none flex flex-col justify-between p-4 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
+          <div className="absolute inset-4 sm:inset-10 border-2 border-dashed border-white/70 rounded-2xl pointer-events-none flex flex-col justify-between p-3 sm:p-4 bg-black/20">
             <div className="flex justify-between items-start text-[11px] text-white/80 font-mono tracking-wider">
               <span>[ CONTACT DETAILS ]</span>
               <span className="text-orange-400 font-bold">MILTENYI FORM</span>

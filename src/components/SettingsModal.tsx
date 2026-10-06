@@ -38,11 +38,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm max-w-full overflow-x-hidden">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden min-w-0">
         {/* Header */}
-        <div className="bg-[#002B49] text-white px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="bg-[#002B49] text-white px-4 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <User className="w-5 h-5 text-orange-400" />
             <h2 className="font-bold text-base sm:text-lg">Instellingen & Beursconfiguratie</h2>
           </div>

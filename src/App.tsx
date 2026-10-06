@@ -134,7 +134,7 @@ export function App() {
   const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 pb-12">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-slate-50 flex flex-col font-sans text-slate-900 pb-12">
       {/* Global Header */}
       <Header
         repName={repName}
@@ -147,7 +147,7 @@ export function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
         <LeadsTable
           leads={leads}
           activeCampaignId={campaignId}
