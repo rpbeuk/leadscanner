@@ -1,4 +1,3 @@
-import Tesseract from 'tesseract.js';
 import type { Lead, ConfidenceFlag } from '../types';
 import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
@@ -110,203 +109,112 @@ export async function generateFieldCrops(imageSource: string | HTMLImageElement)
   });
 }
 
-// Clean extracted strings by stripping printed label prefixes
-function cleanFieldValue(raw: string, labelPrefixes: string[]): string {
-  let text = raw.replace(/\r?\n/g, ' ').trim();
-  for (const prefix of labelPrefixes) {
-    const reg = new RegExp(`^${prefix}\\s*[:*\\-\\s]*`, 'i');
-    text = text.replace(reg, '');
-  }
-  return text.trim();
-}
+type Extracted = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  institute: string;
+  department: string;
+  notes: string;
+  newsletter_opt_in: boolean;
+  confidence_flags: ConfidenceFlag[];
+};
 
-// Gemini Vision multimodal extraction (if API key is present)
+const GEMINI_PROMPT = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form" (printed labels, handwritten answers).
+The photo may be rotated, skewed or taken at an angle. Locate the fields yourself.
+
+Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed labels
+(e.g. "First Name", "Email", "University/Institution/Company", "Department", "How can we support you with your research?").
+Do NOT paraphrase, correct or invent. Preserve abbreviations (MACS, CAR-T, PBMC, REAfinity, ...) and line breaks in the notes.
+If a field is empty or unreadable, return an empty string.
+Emails: no spaces, lowercase. Newsletter: true only if the checkbox is clearly ticked.
+In confidence_flags list individual words you are unsure about (confidence 0-1).`;
+
+const GEMINI_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    first_name: { type: 'STRING' },
+    last_name: { type: 'STRING' },
+    email: { type: 'STRING' },
+    institute: { type: 'STRING' },
+    department: { type: 'STRING' },
+    notes: { type: 'STRING' },
+    newsletter_opt_in: { type: 'BOOLEAN' },
+    confidence_flags: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          field: { type: 'STRING' },
+          word: { type: 'STRING' },
+          confidence: { type: 'NUMBER' },
+          reason: { type: 'STRING' }
+        },
+        required: ['field', 'word', 'confidence']
+      }
+    }
+  },
+  required: ['first_name', 'last_name', 'email', 'institute', 'department', 'notes', 'newsletter_opt_in']
+};
+
+// Gemini Vision multimodal extraction. Returns the reason on failure so the UI can show it.
 async function extractWithGemini(
   base64Image: string,
   apiKey: string
-): Promise<{
-  first_name: string;
-  last_name: string;
-  email: string;
-  institute: string;
-  department: string;
-  notes: string;
-  newsletter_opt_in: boolean;
-  confidence_flags: ConfidenceFlag[];
-} | null> {
-  try {
-    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    const prompt = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form".
-Extract the handwritten information strictly verbatim into structured JSON.
-Do NOT paraphrase or invent information. Preserve abbreviations (like MACS, CAR-T, PBMC, REAfinity, etc.) exactly as written.
-
-The form has these sections:
-1. First Name*
-2. Last Name*
-3. Email*
-4. University/Institution/Company
-5. Department
-6. "How can we support you with your research?" (the big rectangle box)
-7. Newsletter checkbox at the bottom (checked or unchecked)
-
-Output ONLY valid raw JSON with this exact structure (no markdown, no backticks):
-{
-  "first_name": "...",
-  "last_name": "...",
-  "email": "...",
-  "institute": "...",
-  "department": "...",
-  "notes": "...",
-  "newsletter_opt_in": true,
-  "confidence_flags": [
-    { "field": "notes", "word": "example", "confidence": 0.6, "reason": "unclear writing" }
-  ]
-}`;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
-    const payload = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: 'image/jpeg',
-                data: cleanBase64
-              }
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        response_mime_type: 'application/json',
-        temperature: 0.1
-      }
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      console.warn('Gemini vision API error:', res.statusText);
-      return null;
+): Promise<{ data?: Extracted; error?: string }> {
+  const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`;
+  const payload = {
+    contents: [{ parts: [{ text: GEMINI_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } }] }],
+    generationConfig: {
+      response_mime_type: 'application/json',
+      response_schema: GEMINI_SCHEMA,
+      temperature: 0
     }
-
-    const data = await res.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) return null;
-
-    const parsed = JSON.parse(candidateText.trim());
-    return {
-      first_name: parsed.first_name || '',
-      last_name: parsed.last_name || '',
-      email: parsed.email || '',
-      institute: parsed.institute || '',
-      department: parsed.department || '',
-      notes: parsed.notes || '',
-      newsletter_opt_in: !!parsed.newsletter_opt_in,
-      confidence_flags: parsed.confidence_flags || []
-    };
-  } catch (err) {
-    console.warn('Gemini extraction failed, falling back to Tesseract:', err);
-    return null;
-  }
-}
-
-// Client-side OCR extraction with Tesseract.js
-async function extractWithTesseract(
-  imageSource: string,
-  crops: { [key: string]: string | undefined }
-): Promise<{
-  first_name: string;
-  last_name: string;
-  email: string;
-  institute: string;
-  department: string;
-  notes: string;
-  newsletter_opt_in: boolean;
-  confidence_flags: ConfidenceFlag[];
-}> {
-  // If field crops exist, run OCR targeted per crop for higher accuracy!
-  let firstName = '';
-  let lastName = '';
-  let email = '';
-  let institute = '';
-  let department = '';
-  let notes = '';
-
-  const flags: ConfidenceFlag[] = [];
-
-  try {
-    // 1. OCR on individual crops
-    if (crops.first_name) {
-      const res = await Tesseract.recognize(crops.first_name, 'eng');
-      firstName = cleanFieldValue(res.data.text, ['first name', 'first', 'voornaam']);
-    }
-
-    if (crops.last_name) {
-      const res = await Tesseract.recognize(crops.last_name, 'eng');
-      lastName = cleanFieldValue(res.data.text, ['last name', 'last', 'achternaam']);
-    }
-
-    if (crops.email) {
-      const res = await Tesseract.recognize(crops.email, 'eng');
-      const text = cleanFieldValue(res.data.text, ['email', 'e-mail']);
-      const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      email = match ? match[0] : text;
-    }
-
-    if (crops.institute) {
-      const res = await Tesseract.recognize(crops.institute, 'eng');
-      institute = cleanFieldValue(res.data.text, ['university', 'institution', 'company', 'instituut']);
-    }
-
-    if (crops.department) {
-      const res = await Tesseract.recognize(crops.department, 'eng');
-      department = cleanFieldValue(res.data.text, ['department', 'afdeling']);
-    }
-
-    if (crops.notes) {
-      const res = await Tesseract.recognize(crops.notes, 'eng');
-      notes = cleanFieldValue(res.data.text, [
-        'how can we support you with your research',
-        'how can we support',
-        'research'
-      ]);
-
-      // Collect low confidence words from Tesseract
-      const wordsList = (res.data as any).words || [];
-      wordsList.forEach((w: any) => {
-        if (w.confidence < 70 && w.text && w.text.length > 2) {
-          flags.push({
-            field: 'notes',
-            word: w.text,
-            confidence: (w.confidence || 50) / 100,
-            reason: 'Lage herkenningszekerheid'
-          });
-        }
-      });
-    }
-  } catch (err) {
-    console.warn('Individual crop OCR failed, attempting full page recognition:', err);
-    // Fallback: run on whole image
-    const fullRes = await Tesseract.recognize(imageSource, 'eng');
-    notes = fullRes.data.text;
-  }
-
-  return {
-    first_name: firstName,
-    last_name: lastName,
-    email: email,
-    institute: institute,
-    department: department,
-    notes: notes,
-    newsletter_opt_in: false,
-    confidence_flags: flags
   };
+
+  let lastError = 'onbekende fout';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
+        // Retry only on rate limit / server errors
+        if (res.status === 429 || res.status >= 500) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        return { error: lastError };
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return { error: 'Gemini gaf geen resultaat terug (geblokkeerd of leeg)' };
+
+      const parsed = JSON.parse(text.trim());
+      return {
+        data: {
+          first_name: parsed.first_name || '',
+          last_name: parsed.last_name || '',
+          email: parsed.email || '',
+          institute: parsed.institute || '',
+          department: parsed.department || '',
+          notes: parsed.notes || '',
+          newsletter_opt_in: !!parsed.newsletter_opt_in,
+          confidence_flags: parsed.confidence_flags || []
+        }
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  return { error: lastError };
 }
 
 // Main entry point for processing any photographed/uploaded form
@@ -316,35 +224,34 @@ export async function processFormImage(
   collectedBy: string
 ): Promise<Lead> {
   // 1. Resize/compress image to protect mobile browser memory
-  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl);
+  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 2048);
 
   // 2. Generate field crops
   const crops = await generateFieldCrops(safeImageDataUrl);
 
-  // 3. Check if Gemini API Key is available for high-accuracy vision AI
+  // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
+  //    produces noise on handwriting (and mixes in printed labels), so it is not used
+  //    to fill fields; the user gets an explicit reason and enters the data manually.
   const geminiKey = getSavedGeminiKey();
-  let extracted: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    institute: string;
-    department: string;
-    notes: string;
-    newsletter_opt_in: boolean;
-    confidence_flags: ConfidenceFlag[];
-  } | null = null;
+  let extracted: Extracted = {
+    first_name: '', last_name: '', email: '', institute: '', department: '',
+    notes: '', newsletter_opt_in: false, confidence_flags: []
+  };
+  let engineError: string | undefined;
 
-  if (geminiKey) {
-    extracted = await extractWithGemini(safeImageDataUrl, geminiKey);
+  if (!geminiKey) {
+    engineError = 'Geen Gemini API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.';
+  } else {
+    const result = await extractWithGemini(safeImageDataUrl, geminiKey);
+    if (result.data) extracted = result.data;
+    else engineError = `Automatisch uitlezen mislukt (${result.error}). Vul de velden handmatig in.`;
   }
 
-  // 4. If no Gemini or Gemini failed, use Tesseract client-side OCR
-  if (!extracted) {
-    extracted = await extractWithTesseract(safeImageDataUrl, crops);
-  }
-
-  // 5. Run validation & CRM matching
-  const emailCheck = validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
+  // 4. Normalise email, then run validation & CRM matching
+  extracted.email = extracted.email.replace(/\s+/g, '').toLowerCase();
+  const emailCheck = engineError
+    ? { warning: true, reason: engineError }
+    : validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
   const crmMatch = matchCrmAccount(extracted.institute, extracted.department);
 
   const newLead: Lead = {
