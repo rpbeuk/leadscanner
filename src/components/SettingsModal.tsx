@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Check, Database, RefreshCw, User, Tag, ShieldCheck } from 'lucide-react';
+import { supabaseUrl } from '../lib/supabase';
 import { saveRepName, saveCampaignId } from '../lib/storage';
 import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
@@ -163,7 +164,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </span>
             </div>
             <p className="text-slate-500 text-[11px] break-all">
-              Host: <span className="font-mono text-slate-700">dpcickhcpoqjtetoksaj.supabase.co</span>
+              Host: <span className="font-mono text-slate-700">{new URL(supabaseUrl).host}</span>
             </p>
             <div className="pt-2 flex items-center justify-between border-t border-slate-200">
               <span className="text-slate-600">Handmatige cloudsynchronisatie:</span>

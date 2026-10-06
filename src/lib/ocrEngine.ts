@@ -362,13 +362,16 @@ async function extractWithClaude(
   return { error: lastError };
 }
 
+// Name of the deployed Edge Function (Supabase may auto-name it, e.g. "smooth-worker"). Override with VITE_OCR_FUNCTION_NAME.
+const OCR_FUNCTION_NAME = import.meta.env.VITE_OCR_FUNCTION_NAME || 'smooth-worker';
+
 // Azure OpenAI via the "scan-form" Supabase Edge Function (the Azure key stays server-side)
 async function extractWithAzure(
   base64Image: string,
   accessCode: string
 ): Promise<{ data?: Extracted; error?: string }> {
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/smooth-worker`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/${OCR_FUNCTION_NAME}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

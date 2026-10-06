@@ -40,6 +40,7 @@ Volledige installatie (Supabase, Azure, GitHub Pages): zie **[docs/SETUP.md](doc
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Welke keuzes we maakten en waarom |
 | [docs/LEARNINGS.md](docs/LEARNINGS.md) | Alle fouten die we tegenkwamen en wat we ervan leerden |
 | [docs/SECURITY.md](docs/SECURITY.md) | Bekende risico's, privacy (AVG) en wat nog moet |
+| [docs/PLAN.md](docs/PLAN.md) | Stappenplan om dit te reproduceren met eigen GitHub, Supabase en Azure |
 
 ## Projectstructuur
 
