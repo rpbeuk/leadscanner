@@ -28,7 +28,7 @@ export async function resizeImageForMobile(dataUrl: string, maxDimension = 1600)
       if (!ctx) return resolve(dataUrl);
 
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
     };
 
     img.onerror = () => resolve(dataUrl);

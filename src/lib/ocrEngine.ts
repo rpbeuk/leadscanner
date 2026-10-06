@@ -159,13 +159,15 @@ async function extractWithGemini(
   apiKey: string
 ): Promise<{ data?: Extracted; error?: string }> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
   const payload = {
     contents: [{ parts: [{ text: GEMINI_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } }] }],
     generationConfig: {
       response_mime_type: 'application/json',
       response_schema: GEMINI_SCHEMA,
-      temperature: 0
+      temperature: 0,
+      // Transcription needs no reasoning pass; skipping it cuts latency a lot
+      thinkingConfig: { thinkingBudget: 0 }
     }
   };
 
@@ -175,7 +177,8 @@ async function extractWithGemini(
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000)
       });
 
       if (!res.ok) {
@@ -183,7 +186,7 @@ async function extractWithGemini(
         lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
         // Retry only on rate limit / server errors
         if (res.status === 429 || res.status >= 500) {
-          await new Promise((r) => setTimeout(r, 1500));
+          await new Promise((r) => setTimeout(r, 1000));
           continue;
         }
         return { error: lastError };
@@ -221,7 +224,7 @@ export async function processFormImage(
   collectedBy: string
 ): Promise<Lead> {
   // 1. Resize/compress image to protect mobile browser memory
-  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 2048);
+  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 1536);
 
   // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
   //    produces noise on handwriting (and mixes in printed labels), so it is not used
