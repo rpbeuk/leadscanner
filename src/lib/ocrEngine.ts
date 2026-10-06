@@ -42,70 +42,55 @@ export function validateEmailMatch(email: string, firstName: string, lastName: s
   return { warning: false };
 }
 
-// Helper to generate cropped images from an image using HTML Canvas
-export async function generateFieldCrops(imageSource: string | HTMLImageElement): Promise<{
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  institute?: string;
-  department?: string;
-  notes?: string;
-}> {
+type FieldKey = 'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes';
+const FIELD_KEYS: FieldKey[] = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
+// [ymin, xmin, ymax, xmax] on a 0-1000 scale (Gemini's native box format)
+type Box = [number, number, number, number];
+
+// Crop each field out of the photo using the boxes Gemini located on the actual image,
+// so crops stay correct when the photo is rotated, skewed or taken from a distance.
+async function generateFieldCrops(
+  imageDataUrl: string,
+  boxes: Partial<Record<FieldKey, Box>>
+): Promise<Partial<Record<FieldKey, string>>> {
   return new Promise((resolve) => {
-    const img = typeof imageSource === 'string' ? new Image() : imageSource;
-    img.crossOrigin = 'anonymous';
+    const img = new Image();
+    img.onerror = () => resolve({});
+    img.onload = () => {
+      const width = img.naturalWidth;
+      const height = img.naturalHeight;
+      const crops: Partial<Record<FieldKey, string>> = {};
 
-    const performCrop = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-      if (!width || !height) return resolve({});
+      for (const key of FIELD_KEYS) {
+        const box = boxes[key];
+        if (!box || box.length !== 4 || box.some((n) => typeof n !== 'number')) continue;
+        const [ymin, xmin, ymax, xmax] = box;
+        // Pad a little so descenders/ascenders are not cut off
+        const padY = 12;
+        const padX = 12;
+        const sx = Math.max(0, Math.floor(((xmin - padX) / 1000) * width));
+        const sy = Math.max(0, Math.floor(((ymin - padY) / 1000) * height));
+        const ex = Math.min(width, Math.ceil(((xmax + padX) / 1000) * width));
+        const ey = Math.min(height, Math.ceil(((ymax + padY) / 1000) * height));
+        const sw = ex - sx;
+        const sh = ey - sy;
+        if (sw < 10 || sh < 10) continue;
 
-      // Bounding boxes matching the Miltenyi Biotec standard contact form layout
-      const boxes = {
-        first_name: { x: 0.04, y: 0.13, w: 0.44, h: 0.08 },
-        last_name: { x: 0.46, y: 0.13, w: 0.50, h: 0.08 },
-        email: { x: 0.04, y: 0.19, w: 0.92, h: 0.07 },
-        institute: { x: 0.04, y: 0.25, w: 0.92, h: 0.07 },
-        department: { x: 0.04, y: 0.31, w: 0.92, h: 0.07 },
-        notes: { x: 0.04, y: 0.42, w: 0.92, h: 0.45 } // Full context of the research box
-      };
-
-      const crops: Record<string, string> = {};
-
-      for (const [key, box] of Object.entries(boxes)) {
         try {
           const canvas = document.createElement('canvas');
-          const sx = Math.floor(box.x * width);
-          const sy = Math.floor(box.y * height);
-          const sw = Math.floor(box.w * width);
-          const sh = Math.floor(box.h * height);
-
           canvas.width = sw;
           canvas.height = sh;
           const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-            crops[key] = canvas.toDataURL('image/jpeg', 0.85);
-          }
+          if (!ctx) continue;
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+          crops[key] = canvas.toDataURL('image/jpeg', 0.85);
         } catch (e) {
           console.warn('Crop failed for', key, e);
         }
       }
-
       resolve(crops);
     };
-
-    if (typeof imageSource === 'string') {
-      img.onload = performCrop;
-      img.onerror = () => resolve({});
-      img.src = imageSource;
-    } else {
-      if (img.complete) {
-        performCrop();
-      } else {
-        img.onload = performCrop;
-      }
-    }
+    img.src = imageDataUrl;
   });
 }
 
@@ -118,6 +103,7 @@ type Extracted = {
   notes: string;
   newsletter_opt_in: boolean;
   confidence_flags: ConfidenceFlag[];
+  boxes: Partial<Record<FieldKey, Box>>;
 };
 
 const GEMINI_PROMPT = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form" (printed labels, handwritten answers).
@@ -128,6 +114,7 @@ Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed lab
 Do NOT paraphrase, correct or invent. Preserve abbreviations (MACS, CAR-T, PBMC, REAfinity, ...) and line breaks in the notes.
 If a field is empty or unreadable, return an empty string.
 Emails: no spaces, lowercase. Newsletter: true only if the checkbox is clearly ticked.
+For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box the whole handwritten text area inside the rectangle. Omit a box for an empty field.
 In confidence_flags list individual words you are unsure about (confidence 0-1).`;
 
 const GEMINI_SCHEMA = {
@@ -140,6 +127,15 @@ const GEMINI_SCHEMA = {
     department: { type: 'STRING' },
     notes: { type: 'STRING' },
     newsletter_opt_in: { type: 'BOOLEAN' },
+    boxes: {
+      type: 'OBJECT',
+      properties: Object.fromEntries(
+        ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'].map((k) => [
+          k,
+          { type: 'ARRAY', items: { type: 'INTEGER' } }
+        ])
+      )
+    },
     confidence_flags: {
       type: 'ARRAY',
       items: {
@@ -207,7 +203,8 @@ async function extractWithGemini(
           department: parsed.department || '',
           notes: parsed.notes || '',
           newsletter_opt_in: !!parsed.newsletter_opt_in,
-          confidence_flags: parsed.confidence_flags || []
+          confidence_flags: parsed.confidence_flags || [],
+          boxes: parsed.boxes || {}
         }
       };
     } catch (err) {
@@ -226,16 +223,13 @@ export async function processFormImage(
   // 1. Resize/compress image to protect mobile browser memory
   const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 2048);
 
-  // 2. Generate field crops
-  const crops = await generateFieldCrops(safeImageDataUrl);
-
   // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
   //    produces noise on handwriting (and mixes in printed labels), so it is not used
   //    to fill fields; the user gets an explicit reason and enters the data manually.
   const geminiKey = getSavedGeminiKey();
   let extracted: Extracted = {
     first_name: '', last_name: '', email: '', institute: '', department: '',
-    notes: '', newsletter_opt_in: false, confidence_flags: []
+    notes: '', newsletter_opt_in: false, confidence_flags: [], boxes: {}
   };
   let engineError: string | undefined;
 
@@ -252,6 +246,7 @@ export async function processFormImage(
   const emailCheck = engineError
     ? { warning: true, reason: engineError }
     : validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
+  const crops = await generateFieldCrops(safeImageDataUrl, extracted.boxes);
   const crmMatch = matchCrmAccount(extracted.institute, extracted.department);
 
   const newLead: Lead = {
