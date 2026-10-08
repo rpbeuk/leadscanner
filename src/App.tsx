@@ -24,7 +24,9 @@ export function App() {
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [recoveryMode, setRecoveryMode] = useState(
-    () => new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery'
+    () => ['invite', 'recovery'].includes(
+      new URLSearchParams(window.location.hash.slice(1)).get('type') || ''
+    )
   );
   const [repName, setRepName] = useState<string>(getSavedRepName);
   const [campaignId, setCampaignId] = useState<string>(getSavedCampaignId);
