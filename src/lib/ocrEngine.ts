@@ -368,7 +368,7 @@ async function extractWithClaude(
   return { error: 'Claude extraction failed' };
 }
 
-const OCR_FUNCTION_NAME = import.meta.env.VITE_OCR_FUNCTION_NAME || 'smooth-worker';
+const OCR_FUNCTION_NAME = import.meta.env.VITE_OCR_FUNCTION_NAME || 'scan-form';
 
 async function extractWithAzure(
   base64Image: string,

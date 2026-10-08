@@ -24,9 +24,9 @@ Geschatte tijd: 1 tot 2 uur, grotendeels klikwerk. Details per onderdeel staan i
 
 ## Fase 1 — Supabase
 - [ ] Nieuw project aanmaken (kies een EU-regio); noteer de **project-URL** en de **publishable key** (Project Settings → API)
-- [ ] Database: voer `supabase/schema.sql` uit in de SQL editor (maakt `campaigns`, `accounts`, `leads` en RLS)
-- [ ] **Beveilig dit voordat je echte klantgegevens opslaat** — de meegeleverde RLS-regels staan open voor iedereen met de key (zie [SECURITY.md](SECURITY.md))
-- [ ] Let op: de repo bevat als fallback nog de sleutel van het oorspronkelijke project (`src/lib/supabase.ts`). Vervang die door een eigen waarde of verwijder de fallback, anders praat jouw app met het verkeerde project als je secrets vergeet
+- [ ] Database: voer `supabase/schema.sql` uit in de SQL editor (maakt `campaigns`, `accounts`, `leads` en authenticated-only RLS)
+- [ ] Schakel publieke signups uit, stel Auth URL-configuratie in en nodig vertrouwde medewerkers uit (e-mail/wachtwoord)
+- [ ] De app bevat geen fallback meer naar het oorspronkelijke project; configureer eigen Supabase-URL en publishable key in `.env` en GitHub Secrets
 
 ## Fase 2 — Azure OpenAI
 - [ ] Resource aanmaken in een EU-regio; netwerk: **All networks**
@@ -36,7 +36,7 @@ Geschatte tijd: 1 tot 2 uur, grotendeels klikwerk. Details per onderdeel staan i
 
 ## Fase 3 — Edge Function in jouw Supabase
 - [ ] Supabase → Edge Functions → *Deploy a new function* → *Via Editor* → plak `supabase/functions/scan-form/index.ts` → Deploy
-- [ ] Noteer de **functienaam** die Supabase gaf (vaak automatisch, zoals `smooth-worker`)
+- [ ] Deploy de function als `scan-form` met `supabase functions deploy scan-form --no-verify-jwt`
 - [ ] Secrets: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `SCAN_ACCESS_CODE` (zelf bedenken)
 - [ ] **Verify JWT uit** bij de function
 - [ ] Controleer in het dashboard dat de function *Active* is
@@ -44,8 +44,7 @@ Geschatte tijd: 1 tot 2 uur, grotendeels klikwerk. Details per onderdeel staan i
 ## Fase 4 — Eigen GitHub Pages
 - [ ] Repo → Settings → Pages → Source: **GitHub Actions**
 - [ ] Repo → Settings → Secrets and variables → Actions → **Secrets**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-- [ ] Repo → Settings → Secrets and variables → Actions → **Variables** (of in `deploy.yml` toevoegen): `VITE_OCR_FUNCTION_NAME` = jouw functienaam (alleen nodig als die niet `smooth-worker` heet)
-  - de workflow leest nu alleen secrets; voeg bij *Build Vite App* in `.github/workflows/deploy.yml` desnoods toe: `VITE_OCR_FUNCTION_NAME: ${{ vars.VITE_OCR_FUNCTION_NAME }}`
+- [ ] Repo → Settings → Secrets and variables → Actions → **Variables**: `VITE_OCR_FUNCTION_NAME` = `scan-form`
 - [ ] Push naar `main` (of start de workflow handmatig) en wacht op een groene run
 - [ ] Je site staat op `https://<jij>.github.io/<jouw-repo>/` (`vite.config.ts` gebruikt `base: './'`, dus de repo-naam is vrij te kiezen)
 
@@ -83,6 +82,6 @@ Volledige tabel: [SETUP.md](SETUP.md#problemen-oplossen). Alle fouten die wij ze
 - [ ] Groene deploy op jouw GitHub
 - [ ] Een echt formulier correct uitgelezen op de telefoon
 - [ ] Lead zichtbaar in jouw Supabase
-- [ ] RLS aangescherpt en fallback-sleutel uit de code (of bewust geaccepteerd en vastgelegd)
+- [ ] Publieke signups uitgeschakeld; RLS en invite-only login gecontroleerd
 - [ ] Kostenlimiet gezet in Azure
 - [ ] Privacy/IT-akkoord voor het verwerken van persoonsgegevens

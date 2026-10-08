@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Lead, Campaign } from '../types';
 
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dpcickhcpoqjtetoksaj.supabase.co';
-export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_M6DlmRYQ1tMH6Zk0WfGofQ_E83jzEGn';
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://not-configured.supabase.co';
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const isSupabaseConfigured = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey || 'missing-publishable-key');
 
 export async function testCloudConnection(): Promise<boolean> {
   try {

@@ -3,18 +3,19 @@
 Mobiele web-app om op een beurs papieren **contactformulieren** (Miltenyi Biotec "Contact form") te fotograferen,
 het **handschrift automatisch uit te laten lezen**, de lead te controleren en op te slaan/exporteren.
 
-- Live: https://aron-over.github.io/leadscanner/
-- Stack: React 18 + Vite + TypeScript + Tailwind, Supabase (database + Edge Function), Azure OpenAI (handschriftherkenning), GitHub Pages (hosting)
+- Live: https://rpbeuk.github.io/leadscanner/
+- Stack: React 18 + Vite + TypeScript + Tailwind, Supabase (database + invite-only email/password auth + Edge Function), Azure OpenAI (handschriftherkenning), GitHub Pages (hosting)
 
 ## Hoe het werkt
 
 ```
 Telefoon (browser, GitHub Pages)
-  1. foto maken / uploaden  ──►  verkleinen naar 1536px (imageUtils.ts)
-  2. POST foto + toegangscode ─►  Supabase Edge Function "smooth-worker"  (supabase/functions/scan-form)
+  1. inloggen met een uitgenodigd account
+  2. foto maken / uploaden  ──►  verkleinen naar 1536px (imageUtils.ts)
+  3. POST foto + toegangscode ─►  Supabase Edge Function "scan-form"  (supabase/functions/scan-form)
                                     └─► Azure OpenAI (vision model)  ──► JSON met 7 velden + posities
-  3. controle (e-mail vs naam), CRM-account matchen (fuse.js), uitsneden per veld knippen
-  4. Review-scherm ──► opslaan lokaal ──► sync naar Supabase (tabel leads) ──► Excel-export
+  4. controle (e-mail vs naam), CRM-account matchen (fuse.js), uitsneden per veld knippen
+  5. Review-scherm ──► opslaan lokaal ──► sync naar Supabase (tabel leads) ──► Excel-export
 ```
 
 De 7 velden: `first_name`, `last_name`, `email`, `institute`, `department`, `notes`, `newsletter_opt_in`.
@@ -22,7 +23,7 @@ De 7 velden: `first_name`, `last_name`, `email`, `institute`, `department`, `not
 ## Snel starten op een andere laptop
 
 ```bash
-git clone https://github.com/aron-over/leadscanner.git
+git clone https://github.com/rpbeuk/leadscanner.git
 cd leadscanner
 npm ci
 cp .env.example .env     # vul de Supabase-waarden in
@@ -30,7 +31,7 @@ npm run dev              # https://localhost:5173 (self-signed cert; nodig voor 
 npm run build            # type-check + productiebuild naar dist/
 ```
 
-Volledige installatie (Supabase, Azure, GitHub Pages): zie **[docs/SETUP.md](docs/SETUP.md)**.
+Volledige installatie (eigen Supabase-project, invite-only toegang, Azure, GitHub Pages): zie **[docs/SETUP.md](docs/SETUP.md)**.
 
 ## Documentatie
 

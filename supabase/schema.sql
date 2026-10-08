@@ -53,31 +53,37 @@ CREATE INDEX IF NOT EXISTS idx_leads_campaign ON leads(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
 
 -- 4. Row Level Security (RLS) & Policies
--- Toestaan dat de webapp met de anon/publishable key kan lezen en schrijven
+-- All app access requires an invited, authenticated Supabase user.
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read campaigns" ON campaigns;
-CREATE POLICY "Allow public read campaigns" ON campaigns FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow public insert campaigns" ON campaigns;
-CREATE POLICY "Allow public insert campaigns" ON campaigns FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS "Allow public update campaigns" ON campaigns;
-CREATE POLICY "Allow public update campaigns" ON campaigns FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Authenticated users can access campaigns" ON campaigns;
+CREATE POLICY "Authenticated users can access campaigns" ON campaigns
+    FOR ALL TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Allow public read accounts" ON accounts;
-CREATE POLICY "Allow public read accounts" ON accounts FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow public insert accounts" ON accounts;
-CREATE POLICY "Allow public insert accounts" ON accounts FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can access accounts" ON accounts;
+CREATE POLICY "Authenticated users can access accounts" ON accounts
+    FOR ALL TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Allow public read leads" ON leads;
-CREATE POLICY "Allow public read leads" ON leads FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow public insert leads" ON leads;
-CREATE POLICY "Allow public insert leads" ON leads FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS "Allow public update leads" ON leads;
-CREATE POLICY "Allow public update leads" ON leads FOR UPDATE USING (true);
 DROP POLICY IF EXISTS "Allow public delete leads" ON leads;
-CREATE POLICY "Allow public delete leads" ON leads FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Authenticated users can access leads" ON leads;
+CREATE POLICY "Authenticated users can access leads" ON leads
+    FOR ALL TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 -- 5. Standaard Campagne invoegen voor tests
 INSERT INTO campaigns (id, name, location, is_active)
