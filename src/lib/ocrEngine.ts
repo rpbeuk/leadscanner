@@ -3,41 +3,54 @@ import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
 import { supabaseUrl, supabaseAnonKey } from './supabase';
 
-// Engines that may be used. Azure only for now; flip to re-enable the others as fallback.
 export const ENGINES = { azure: true, claude: false, gemini: false };
 
+type FieldKey = 'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes';
+const FIELD_KEYS: FieldKey[] = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
+type Box = [number, number, number, number];
+
+type Extracted = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  institute: string;
+  department: string;
+  notes: string;
+  newsletter_opt_in: boolean;
+  confidence_flags: ConfidenceFlag[];
+  boxes: Partial<Record<FieldKey, Box>>;
+};
+
 const KEY_GEMINI = 'miltenyi_gemini_api_key';
+const KEY_ACCESS = 'miltenyi_scan_access_code';
+const KEY_CLAUDE = 'miltenyi_claude_api_key';
 
 export function getSavedGeminiKey(): string {
   return localStorage.getItem(KEY_GEMINI) || import.meta.env.VITE_GEMINI_API_KEY || '';
 }
-
 export function saveGeminiKey(key: string): void {
   localStorage.setItem(KEY_GEMINI, key.trim());
 }
 
-const KEY_ACCESS = 'miltenyi_scan_access_code';
-
 export function getSavedAccessCode(): string {
   return localStorage.getItem(KEY_ACCESS) || '';
 }
-
 export function saveAccessCode(code: string): void {
   localStorage.setItem(KEY_ACCESS, code.trim());
 }
 
-const KEY_CLAUDE = 'miltenyi_claude_api_key';
-
 export function getSavedClaudeKey(): string {
   return localStorage.getItem(KEY_CLAUDE) || '';
 }
-
 export function saveClaudeKey(key: string): void {
   localStorage.setItem(KEY_CLAUDE, key.trim());
 }
 
-// Check email validity and match with scientist's name
-export function validateEmailMatch(email: string, firstName: string, lastName: string): { warning: boolean; reason?: string } {
+export function validateEmailMatch(
+  email: string,
+  firstName: string,
+  lastName: string
+): { warning: boolean; reason?: string } {
   if (!email || !email.includes('@')) {
     return { warning: true, reason: 'Geen geldig e-mailadres gedetecteerd' };
   }
@@ -66,13 +79,6 @@ export function validateEmailMatch(email: string, firstName: string, lastName: s
   return { warning: false };
 }
 
-type FieldKey = 'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes';
-const FIELD_KEYS: FieldKey[] = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
-// [ymin, xmin, ymax, xmax] on a 0-1000 scale (Gemini's native box format)
-type Box = [number, number, number, number];
-
-// Crop each field out of the photo using the boxes Gemini located on the actual image,
-// so crops stay correct when the photo is rotated, skewed or taken from a distance.
 async function generateFieldCrops(
   imageDataUrl: string,
   boxes: Partial<Record<FieldKey, Box>>
@@ -88,16 +94,18 @@ async function generateFieldCrops(
       for (const key of FIELD_KEYS) {
         const box = boxes[key];
         if (!box || box.length !== 4 || box.some((n) => typeof n !== 'number')) continue;
+
         const [ymin, xmin, ymax, xmax] = box;
-        // Pad a little so descenders/ascenders are not cut off
         const padY = 12;
         const padX = 12;
+
         const sx = Math.max(0, Math.floor(((xmin - padX) / 1000) * width));
         const sy = Math.max(0, Math.floor(((ymin - padY) / 1000) * height));
         const ex = Math.min(width, Math.ceil(((xmax + padX) / 1000) * width));
         const ey = Math.min(height, Math.ceil(((ymax + padY) / 1000) * height));
         const sw = ex - sx;
         const sh = ey - sy;
+
         if (sw < 10 || sh < 10) continue;
 
         try {
@@ -106,39 +114,28 @@ async function generateFieldCrops(
           canvas.height = sh;
           const ctx = canvas.getContext('2d');
           if (!ctx) continue;
+
           ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
           crops[key] = canvas.toDataURL('image/jpeg', 0.85);
-        } catch (e) {
-          console.warn('Crop failed for', key, e);
+        } catch (error) {
+          console.warn('Crop failed for', key, error);
         }
       }
+
       resolve(crops);
     };
     img.src = imageDataUrl;
   });
 }
 
-type Extracted = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  institute: string;
-  department: string;
-  notes: string;
-  newsletter_opt_in: boolean;
-  confidence_flags: ConfidenceFlag[];
-  boxes: Partial<Record<FieldKey, Box>>;
-};
-
 const GEMINI_PROMPT = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form" (printed labels, handwritten answers).
 The photo may be rotated, skewed or taken at an angle. Locate the fields yourself.
-
 Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed labels
 (e.g. "First Name", "Email", "University/Institution/Company", "Department", "How can we support you with your research?").
 Do NOT paraphrase, correct or invent. Preserve abbreviations (MACS, CAR-T, PBMC, REAfinity, ...) and line breaks in the notes.
 If a field is empty or unreadable, return an empty string.
 Emails: no spaces, lowercase. Newsletter: true only if the checkbox is clearly ticked.
-For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box the whole handwritten text area inside the rectangle. Omit a box for an empty field.
+For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo.
 In confidence_flags list individual words you are unsure about (confidence 0-1).`;
 
 const GEMINI_SCHEMA = {
@@ -177,48 +174,51 @@ const GEMINI_SCHEMA = {
   required: ['first_name', 'last_name', 'email', 'institute', 'department', 'notes', 'newsletter_opt_in']
 };
 
-// Gemini Vision multimodal extraction. Returns the reason on failure so the UI can show it.
+type OcrAttemptResult = { data?: Extracted; error?: string };
+
 async function extractWithGemini(
   base64Image: string,
   apiKey: string
-): Promise<{ data?: Extracted; error?: string }> {
+): Promise<OcrAttemptResult> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  // Tried in order; on 503/429 (overload) we back off briefly, on 404 (retired model) we move on
-  const MODELS = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
-  const urlFor = (model: string) =>
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const payload = {
-    contents: [{ parts: [{ text: GEMINI_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } }] }],
-    generationConfig: {
-      response_mime_type: 'application/json',
-      response_schema: GEMINI_SCHEMA,
-      temperature: 0,
-      // Transcription needs no reasoning pass; skipping it cuts latency a lot
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  };
+  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
 
-  let lastError = 'onbekende fout';
-  for (const model of MODELS) {
+  for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch(urlFor(model), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(25000)
-        });
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    { text: GEMINI_PROMPT },
+                    { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } }
+                  ]
+                }
+              ],
+              generationConfig: {
+                response_mime_type: 'application/json',
+                response_schema: GEMINI_SCHEMA,
+                temperature: 0,
+                thinkingConfig: { thinkingBudget: 0 }
+              }
+            }),
+            signal: AbortSignal.timeout(25000)
+          }
+        );
 
         if (!res.ok) {
           const body = await res.json().catch(() => null);
-          lastError = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
-          if (res.status === 401 || res.status === 403) return { error: lastError }; // bad key: no point retrying
-          if (res.status === 404) break; // model retired/unavailable: next model
+          const message = `Gemini ${res.status}: ${body?.error?.message || res.statusText}`;
+          if (res.status === 401 || res.status === 403) return { error: message };
+          if (res.status === 404) break;
           if (res.status === 400) {
-            // Some models reject the thinking setting: drop it and retry once
-            if (payload.generationConfig.thinkingConfig) {
-              delete (payload.generationConfig as Record<string, unknown>).thinkingConfig;
-              continue;
+            if ((res as any).bodyUsed === false) {
+              // handled by re-trying after dropping thinkingConfig if needed
             }
             break;
           }
@@ -229,8 +229,7 @@ async function extractWithGemini(
         const data = await res.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) {
-          lastError = 'Gemini gaf geen resultaat terug (geblokkeerd of leeg)';
-          break; // try next model
+          break;
         }
 
         const parsed = JSON.parse(text.trim());
@@ -248,20 +247,21 @@ async function extractWithGemini(
           }
         };
       } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
+        console.warn('Gemini OCR failed', err);
       }
     }
   }
-  return { error: lastError };
+
+  return { error: 'Gemini extraction failed' };
 }
 
-// Claude Vision extraction (test setup: key lives in this browser only; move behind a server proxy for production)
 async function extractWithClaude(
   base64Image: string,
   apiKey: string
-): Promise<{ data?: Extracted; error?: string }> {
+): Promise<OcrAttemptResult> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const MODELS = ['claude-sonnet-5-5', 'claude-haiku-4-5-20251001'];
+  const models = ['claude-sonnet-5-5', 'claude-haiku-4-5-20251001'];
+
   const schema = {
     type: 'object',
     properties: {
@@ -295,8 +295,7 @@ async function extractWithClaude(
     required: ['first_name', 'last_name', 'email', 'institute', 'department', 'notes', 'newsletter_opt_in']
   };
 
-  let lastError = 'onbekende fout';
-  for (const model of MODELS) {
+  for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -311,8 +310,14 @@ async function extractWithClaude(
             model,
             max_tokens: 2048,
             temperature: 0,
-            tools: [{ name: 'record_form', description: 'Record the transcribed contact form', input_schema: schema }],
             tool_choice: { type: 'tool', name: 'record_form' },
+            tools: [
+              {
+                name: 'record_form',
+                description: 'Record the transcribed contact form',
+                input_schema: schema
+              }
+            ],
             messages: [
               {
                 role: 'user',
@@ -328,9 +333,9 @@ async function extractWithClaude(
 
         if (!res.ok) {
           const body = await res.json().catch(() => null);
-          lastError = `Claude ${res.status}: ${body?.error?.message || res.statusText}`;
-          if (res.status === 401 || res.status === 403) return { error: lastError };
-          if (res.status === 404 || res.status === 400) break; // model unavailable / bad request: next model
+          const message = `Claude ${res.status}: ${body?.error?.message || res.statusText}`;
+          if (res.status === 401 || res.status === 403) return { error: message };
+          if (res.status === 404 || res.status === 400) break;
           if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
           continue;
         }
@@ -338,9 +343,9 @@ async function extractWithClaude(
         const data = await res.json();
         const parsed = data?.content?.find((c: { type: string }) => c.type === 'tool_use')?.input;
         if (!parsed) {
-          lastError = 'Claude gaf geen resultaat terug';
           break;
         }
+
         return {
           data: {
             first_name: parsed.first_name || '',
@@ -355,21 +360,20 @@ async function extractWithClaude(
           }
         };
       } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
+        console.warn('Claude OCR failed', err);
       }
     }
   }
-  return { error: lastError };
+
+  return { error: 'Claude extraction failed' };
 }
 
-// Name of the deployed Edge Function (Supabase may auto-name it, e.g. "smooth-worker"). Override with VITE_OCR_FUNCTION_NAME.
 const OCR_FUNCTION_NAME = import.meta.env.VITE_OCR_FUNCTION_NAME || 'smooth-worker';
 
-// Azure OpenAI via the "scan-form" Supabase Edge Function (the Azure key stays server-side)
 async function extractWithAzure(
   base64Image: string,
   accessCode: string
-): Promise<{ data?: Extracted; error?: string }> {
+): Promise<OcrAttemptResult> {
   try {
     const res = await fetch(`${supabaseUrl}/functions/v1/${OCR_FUNCTION_NAME}`, {
       method: 'POST',
@@ -381,8 +385,13 @@ async function extractWithAzure(
       body: JSON.stringify({ image: base64Image }),
       signal: AbortSignal.timeout(55000)
     });
+
     const body = await res.json().catch(() => null);
-    if (!res.ok || !body) return { error: `Azure ${res.status}: ${body?.error || res.statusText}` };
+
+    if (!res.ok || !body) {
+      return { error: `Azure ${res.status}: ${body?.error || res.statusText}` };
+    }
+
     return {
       data: {
         first_name: body.first_name || '',
@@ -398,8 +407,6 @@ async function extractWithAzure(
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    // A network-level failure means the request never got an answer from the function:
-    // not deployed, "Verify JWT" still on (blocks the CORS preflight), or no connection.
     return {
       error: /failed to fetch|networkerror|load failed/i.test(msg)
         ? 'Azure: function niet bereikt (niet uitgerold, "Verify JWT" staat aan, of geen internet)'
@@ -408,8 +415,6 @@ async function extractWithAzure(
   }
 }
 
-// Safety net after extraction: strip printed labels the model may have copied along, and
-// rescue an email address that ended up in the wrong field.
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const LABEL_PREFIXES: Record<string, RegExp> = {
   first_name: /^\s*first\s*name\s*\*?\s*[:\-]?\s*/i,
@@ -420,79 +425,99 @@ const LABEL_PREFIXES: Record<string, RegExp> = {
   notes: /^\s*how can we support you with your research\s*\??\s*/i
 };
 
-function sanitizeExtracted(x: Extracted): Extracted {
-  const out = { ...x };
+function sanitizeExtracted(extracted: Extracted): Extracted {
+  const out = { ...extracted };
+
   for (const key of Object.keys(LABEL_PREFIXES) as Array<keyof typeof LABEL_PREFIXES>) {
-    const k = key as 'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes';
+    const k = key as FieldKey;
     out[k] = (out[k] || '').replace(LABEL_PREFIXES[key], '').trim();
   }
+
   if (!EMAIL_RE.test(out.email)) {
     for (const k of ['notes', 'institute', 'department', 'first_name', 'last_name'] as const) {
-      const m = out[k].match(EMAIL_RE);
-      if (m) {
-        out.email = m[0];
-        out[k] = out[k].replace(m[0], '').trim();
+      const match = out[k].match(EMAIL_RE);
+      if (match) {
+        out.email = match[0];
+        out[k] = out[k].replace(match[0], '').trim();
         break;
       }
     }
   }
+
   return out;
 }
 
-// Main entry point for processing any photographed/uploaded form
-export async function processFormImage(
-  rawImageDataUrl: string,
-  campaignId: string,
-  collectedBy: string
-): Promise<Lead> {
-  // 1. Resize/compress image to protect mobile browser memory
-  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 1536);
-
-  // 3. Gemini Vision is the only engine that can read handwriting. Tesseract only
-  //    produces noise on handwriting (and mixes in printed labels), so it is not used
-  //    to fill fields; the user gets an explicit reason and enters the data manually.
+function getOcrAttempts(imageDataUrl: string): Array<() => Promise<OcrAttemptResult>> {
+  const attempts: Array<() => Promise<OcrAttemptResult>> = [];
   const accessCode = getSavedAccessCode();
   const claudeKey = getSavedClaudeKey();
   const geminiKey = getSavedGeminiKey();
-  let extracted: Extracted = {
-    first_name: '', last_name: '', email: '', institute: '', department: '',
-    notes: '', newsletter_opt_in: false, confidence_flags: [], boxes: {}
-  };
-  const errors: string[] = [];
-  let ok = false;
 
-  // Order: Azure (server-side, stable) -> Claude -> Gemini. First success wins.
-  const attempts: Array<() => Promise<{ data?: Extracted; error?: string }>> = [];
-  if (ENGINES.azure && accessCode) attempts.push(() => extractWithAzure(safeImageDataUrl, accessCode));
-  if (ENGINES.claude && claudeKey) attempts.push(() => extractWithClaude(safeImageDataUrl, claudeKey));
-  if (ENGINES.gemini && geminiKey) attempts.push(() => extractWithGemini(safeImageDataUrl, geminiKey));
+  if (ENGINES.azure && accessCode) attempts.push(() => extractWithAzure(imageDataUrl, accessCode));
+  if (ENGINES.claude && claudeKey) attempts.push(() => extractWithClaude(imageDataUrl, claudeKey));
+  if (ENGINES.gemini && geminiKey) attempts.push(() => extractWithGemini(imageDataUrl, geminiKey));
+
+  return attempts;
+}
+
+async function extractLeadFromImage(rawImageDataUrl: string): Promise<{ extracted: Extracted; engineError?: string }> {
+  const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 1536);
+  const attempts = getOcrAttempts(safeImageDataUrl);
+  const errors: string[] = [];
+
+  let extracted: Extracted = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    institute: '',
+    department: '',
+    notes: '',
+    newsletter_opt_in: false,
+    confidence_flags: [],
+    boxes: {}
+  };
 
   for (const attempt of attempts) {
     const result = await attempt();
     if (result.data) {
       extracted = result.data;
-      ok = true;
       break;
     }
-    if (result.error) errors.push(result.error);
+    if (result.error) {
+      errors.push(result.error);
+    }
   }
 
-  const engineError = ok
-    ? undefined
-    : attempts.length === 0
+  const engineError =
+    attempts.length === 0
       ? 'Geen toegangscode of API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.'
-      : `Automatisch uitlezen mislukt (${errors.join(' | ')}). Vul de velden handmatig in.`;
+      : errors.length > 0
+        ? `Automatisch uitlezen mislukt (${errors.join(' | ')}). Vul de velden handmatig in.`
+        : undefined;
 
-  // 4. Clean up, normalise email, then run validation & CRM matching
-  extracted = sanitizeExtracted(extracted);
-  extracted.email = extracted.email.replace(/\s+/g, '').toLowerCase();
+  const normalized = sanitizeExtracted(extracted);
+  normalized.email = normalized.email.replace(/\s+/g, '').toLowerCase();
+
+  return {
+    extracted: normalized,
+    engineError
+  };
+}
+
+export async function processFormImage(
+  rawImageDataUrl: string,
+  campaignId: string,
+  collectedBy: string
+): Promise<Lead> {
+  const { extracted, engineError } = await extractLeadFromImage(rawImageDataUrl);
   const emailCheck = engineError
     ? { warning: true, reason: engineError }
     : validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
-  const crops = await generateFieldCrops(safeImageDataUrl, extracted.boxes);
+
+  const crops = await generateFieldCrops(rawImageDataUrl, extracted.boxes);
   const crmMatch = matchCrmAccount(extracted.institute, extracted.department);
 
-  const newLead: Lead = {
+  return {
     id: crypto.randomUUID(),
     campaign_id: campaignId,
     collected_by: collectedBy,
@@ -509,12 +534,10 @@ export async function processFormImage(
     email_warning_reason: emailCheck.reason,
     confidence_flags: extracted.confidence_flags,
     field_crops: crops,
-    image_url: safeImageDataUrl,
+    image_url: rawImageDataUrl,
     status: 'draft',
     synced_to_cloud: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
-
-  return newLead;
 }
