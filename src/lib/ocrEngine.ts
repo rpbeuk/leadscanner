@@ -460,7 +460,9 @@ function getOcrAttempts(imageDataUrl: string): Array<() => Promise<OcrAttemptRes
   return attempts;
 }
 
-async function extractLeadFromImage(rawImageDataUrl: string): Promise<{ extracted: Extracted; engineError?: string }> {
+async function extractLeadFromImage(
+  rawImageDataUrl: string
+): Promise<{ extracted: Extracted; engineError?: string; imageDataUrl: string }> {
   const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 1536);
   const attempts = getOcrAttempts(safeImageDataUrl);
   const errors: string[] = [];
@@ -500,7 +502,8 @@ async function extractLeadFromImage(rawImageDataUrl: string): Promise<{ extracte
 
   return {
     extracted: normalized,
-    engineError
+    engineError,
+    imageDataUrl: safeImageDataUrl
   };
 }
 
@@ -509,12 +512,12 @@ export async function processFormImage(
   campaignId: string,
   collectedBy: string
 ): Promise<Lead> {
-  const { extracted, engineError } = await extractLeadFromImage(rawImageDataUrl);
+  const { extracted, engineError, imageDataUrl } = await extractLeadFromImage(rawImageDataUrl);
   const emailCheck = engineError
     ? { warning: true, reason: engineError }
     : validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
 
-  const crops = await generateFieldCrops(rawImageDataUrl, extracted.boxes);
+  const crops = await generateFieldCrops(imageDataUrl, extracted.boxes);
   const crmMatch = matchCrmAccount(extracted.institute, extracted.department);
 
   return {
@@ -534,7 +537,7 @@ export async function processFormImage(
     email_warning_reason: emailCheck.reason,
     confidence_flags: extracted.confidence_flags,
     field_crops: crops,
-    image_url: rawImageDataUrl,
+    image_url: imageDataUrl,
     status: 'draft',
     synced_to_cloud: false,
     created_at: new Date().toISOString(),
