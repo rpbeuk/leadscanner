@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
 import type { Lead } from './types';
 import { 
   getSavedRepName, 
@@ -9,8 +10,9 @@ import {
   deleteLocalLead, 
   syncPendingLeads 
 } from './lib/storage';
-import { testCloudConnection, fetchLeadsFromSupabase, syncLeadToSupabase, supabase } from './lib/supabase';
+import { testCloudConnection, fetchLeadsFromSupabase, syncLeadToSupabase, supabase, isSupabaseConfigured } from './lib/supabase';
 import { processFormImage } from './lib/ocrEngine';
+import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { LeadsTable } from './components/LeadsTable';
 import { ScannerModal } from './components/ScannerModal';
@@ -18,6 +20,14 @@ import { ReviewModal } from './components/ReviewModal';
 import { SettingsModal } from './components/SettingsModal';
 
 export function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(
+    () => ['invite', 'recovery'].includes(
+      new URLSearchParams(window.location.hash.slice(1)).get('type') || ''
+    )
+  );
   const [repName, setRepName] = useState<string>(getSavedRepName);
   const [campaignId, setCampaignId] = useState<string>(getSavedCampaignId);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -29,6 +39,38 @@ export function App() {
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [activeReviewLead, setActiveReviewLead] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let mounted = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      setAuthReady(true);
+      if (nextSession) setAuthError(null);
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true);
+      } else if (event === 'SIGNED_OUT') {
+        setRecoveryMode(false);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) setAuthError(error.message);
+      setSession(data.session);
+      setAuthReady(true);
+    }).catch((err: unknown) => {
+      if (!mounted) return;
+      setAuthError(err instanceof Error ? err.message : 'Kan de inlogsessie niet controleren.');
+      setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Load leads directly from Supabase and sync local storage
   const loadLeads = useCallback(async () => {
@@ -49,6 +91,7 @@ export function App() {
   }, [campaignId]);
 
   useEffect(() => {
+    if (!session) return;
     loadLeads();
 
     const handleStatus = () => {
@@ -65,7 +108,7 @@ export function App() {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
     };
-  }, [loadLeads]);
+  }, [loadLeads, session]);
 
   // Trigger manual sync
   const handleManualSync = async () => {
@@ -75,6 +118,14 @@ export function App() {
       await loadLeads();
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Sign-out failed:', error);
+      alert(`Uitloggen is niet gelukt: ${error.message}`);
     }
   };
 
@@ -133,15 +184,49 @@ export function App() {
 
   const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
 
+  if (!isSupabaseConfigured) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <section className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+          <h1 className="text-lg font-bold text-slate-900">Supabase-configuratie ontbreekt</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            Stel <code>VITE_SUPABASE_URL</code> en <code>VITE_SUPABASE_ANON_KEY</code> in voor je nieuwe project
+            in het lokale <code>.env</code>-bestand en in GitHub Actions Secrets. Gebruik alleen de publishable key.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!authReady) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600">
+        <Loader2 className="h-6 w-6 animate-spin" aria-label="Inlogsessie controleren" />
+      </main>
+    );
+  }
+
+  if (!session || recoveryMode) {
+    return (
+      <AuthScreen
+        recoveryMode={recoveryMode}
+        authError={authError}
+        onRecoveryComplete={() => setRecoveryMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen max-w-full overflow-x-hidden bg-slate-50 flex flex-col font-sans text-slate-900 pb-12">
       {/* Global Header */}
       <Header
         repName={repName}
         campaignId={campaignId}
+        userEmail={session.user.email || 'Ingelogde medewerker'}
         isOnline={isOnline}
         pendingSyncCount={pendingCount}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Container */}

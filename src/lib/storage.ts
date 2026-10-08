@@ -1,7 +1,7 @@
 import type { Lead } from '../types';
 import { syncLeadToSupabase } from './supabase';
 
-const DB_NAME = 'MiltenyiLeadScannerDB';
+const DB_NAME = 'MiltenyiLeadScannerDB-v2';
 const STORE_NAME = 'leads';
 const DB_VERSION = 1;
 
