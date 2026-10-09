@@ -70,7 +70,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       <div className="flex items-center justify-between px-1">
         <div>
           <h1 className="text-lg font-bold text-slate-900 leading-tight">
-            Contactformulieren
+            Contact forms
           </h1>
           <p className="text-xs text-slate-500">
             {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} in database ({activeCampaignId})
@@ -84,7 +84,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               type="button"
               onClick={() => exportLeadsToExcel(campaignLeads, activeCampaignId)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Exporteer naar Excel (.xlsx)"
+              title="Export to Excel (.xlsx)"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span className="hidden sm:inline">Excel</span>
@@ -94,7 +94,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               type="button"
               onClick={() => openMarketingMailClient(campaignLeads, activeCampaignId, repName)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Mail dagafsluiting naar marketing_BNL@Miltenyi.com"
+              title="Email the end-of-day report to marketing_BNL@Miltenyi.com"
             >
               <Mail className="w-3.5 h-3.5 text-blue-900" />
               <span className="hidden sm:inline">Mail</span>
@@ -111,7 +111,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Zoek in database..."
+            placeholder="Search leads..."
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm focus:ring-2 focus:ring-[#002B49] focus:border-transparent shadow-sm"
           />
         </div>
@@ -143,9 +143,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-3 text-orange-600">
               <Camera className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-800 mb-1">Geen formulieren in database</h3>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">No forms in the database</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mb-6">
-              Maak een foto van een ingevuld Miltenyi contactformulier om de gegevens in te lezen.
+              Take a photo of a completed Miltenyi contact form to capture its details.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <button
@@ -154,7 +154,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
               >
                 <Camera className="w-4 h-4" />
-                <span>Camera Openen & Scannen</span>
+                <span>Open camera & scan</span>
               </button>
               <button
                 type="button"
@@ -162,7 +162,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Upload className="w-3.5 h-3.5 text-slate-500" />
-                <span>Foto uit bibliotheek</span>
+                <span>Choose a photo</span>
               </button>
             </div>
           </div>
@@ -177,10 +177,10 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 {/* Name & Indicators */}
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900 text-sm group-hover:text-blue-900 truncate">
-                    {lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Naamloos formulier'}
+                    {lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Unnamed form'}
                   </span>
                   {lead.email_warning && (
-                    <span title="Controleer e-mailadres" className="shrink-0">
+                    <span title="Check email address" className="shrink-0">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                     </span>
                   )}
@@ -193,7 +193,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
                 {/* Email */}
                 <p className="text-xs text-slate-500 font-mono truncate mt-0.5">
-                  {lead.email || 'Geen email'}
+                  {lead.email || 'No email'}
                 </p>
 
                 {/* Institute & Department */}
@@ -219,12 +219,12 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Verwijder lead ${lead.first_name} ${lead.last_name}?`)) {
+                    if (confirm(`Delete lead ${lead.first_name} ${lead.last_name}?`)) {
                       onDeleteLead(lead.id);
                     }
                   }}
                   className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Verwijder"
+                  title="Delete"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -242,7 +242,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           type="button"
           onClick={() => galleryInputRef.current?.click()}
           className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
-          title="Foto uit galerij uploaden"
+          title="Upload a photo from your gallery"
         >
           <Upload className="w-5 h-5 text-slate-600" />
         </button>
@@ -254,7 +254,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           className="pointer-events-auto px-7 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2.5 transition-all border-2 border-white ring-2 ring-orange-400/20"
         >
           <Camera className="w-5 h-5" />
-          <span>Scan Formulier</span>
+          <span>Scan form</span>
         </button>
 
         {/* Live Viewfinder Modal */}
@@ -262,7 +262,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           type="button"
           onClick={onOpenScanner}
           className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
-          title="Open live zoeker kader"
+          title="Open live viewfinder"
         >
           <ScanLine className="w-5 h-5 text-slate-600" />
         </button>

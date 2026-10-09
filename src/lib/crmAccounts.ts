@@ -64,7 +64,7 @@ export function matchCrmAccount(rawInstitute: string, rawDepartment: string, acc
       account: resultsBoth[0].item,
       matchLevel: 'level_3',
       score: resultsBoth[0].score,
-      explanation: `Exacte match op afdeling & instituut: ${resultsBoth[0].item.level_1} → ${resultsBoth[0].item.level_3}`
+      explanation: `Exact match for department and institution: ${resultsBoth[0].item.level_1} → ${resultsBoth[0].item.level_3}`
     };
   }
 
@@ -81,7 +81,7 @@ export function matchCrmAccount(rawInstitute: string, rawDepartment: string, acc
       account: resultsLevel1[0].item,
       matchLevel: 'fallback_level_1',
       score: resultsLevel1[0].score || 0.4,
-      explanation: `Combinatie niet gevonden → Terugval naar Niveau 1: ${resultsLevel1[0].item.level_1}`
+      explanation: `Combination not found → Falling back to level 1: ${resultsLevel1[0].item.level_1}`
     };
   }
 

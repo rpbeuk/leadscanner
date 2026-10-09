@@ -35,14 +35,14 @@ export function AuthScreen({ recoveryMode, authError, onRecoveryComplete }: Auth
         const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
         if (resetError) throw resetError;
-        setNotice('Als dit e-mailadres een uitgenodigd account heeft, ontvang je een link om je wachtwoord opnieuw in te stellen.');
+        setNotice('If an invited account exists for this email address, you will receive a link to reset your password.');
         return;
       }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Er is een onverwachte fout opgetreden.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -61,23 +61,23 @@ export function AuthScreen({ recoveryMode, authError, onRecoveryComplete }: Auth
           <div>
             <h1 className="text-lg font-bold text-slate-900">Lead Scanner</h1>
             <p className="text-xs text-slate-500">
-              {isRecovery ? 'Nieuw wachtwoord instellen' : isForgotPassword ? 'Wachtwoord herstellen' : 'Inloggen'}
+              {isRecovery ? 'Set a new password' : isForgotPassword ? 'Reset your password' : 'Sign in'}
             </p>
           </div>
         </div>
 
         <p className="mb-5 text-sm leading-relaxed text-slate-600">
           {isRecovery
-            ? 'Kies een nieuw wachtwoord voor je uitgenodigde account.'
+            ? 'Choose a new password for your invited account.'
             : isForgotPassword
-              ? 'Vul het e-mailadres van je uitgenodigde account in.'
-              : 'Alleen uitgenodigde medewerkers hebben toegang tot de leadgegevens.'}
+              ? 'Enter the email address for your invited account.'
+              : 'Only invited team members can access lead data.'}
         </p>
 
         <form onSubmit={submit} className="space-y-4">
           {!isRecovery && (
             <div>
-              <label htmlFor="auth-email" className="mb-1 block text-xs font-semibold text-slate-700">E-mailadres</label>
+              <label htmlFor="auth-email" className="mb-1 block text-xs font-semibold text-slate-700">Email address</label>
               <input
                 id="auth-email"
                 type="email"
@@ -93,7 +93,7 @@ export function AuthScreen({ recoveryMode, authError, onRecoveryComplete }: Auth
           {!isForgotPassword && (
             <div>
               <label htmlFor="auth-password" className="mb-1 block text-xs font-semibold text-slate-700">
-                {isRecovery ? 'Nieuw wachtwoord' : 'Wachtwoord'}
+                {isRecovery ? 'New password' : 'Password'}
               </label>
               <input
                 id="auth-password"
@@ -125,7 +125,7 @@ export function AuthScreen({ recoveryMode, authError, onRecoveryComplete }: Auth
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isRecovery ? 'Wachtwoord opslaan' : isForgotPassword ? 'Herstellink versturen' : 'Inloggen'}
+            {isRecovery ? 'Save password' : isForgotPassword ? 'Send reset link' : 'Sign in'}
           </button>
         </form>
 
@@ -140,7 +140,7 @@ export function AuthScreen({ recoveryMode, authError, onRecoveryComplete }: Auth
             }}
             className="mt-4 w-full text-center text-xs font-medium text-blue-900 hover:underline"
           >
-            {isForgotPassword ? 'Terug naar inloggen' : 'Wachtwoord vergeten?'}
+            {isForgotPassword ? 'Back to sign in' : 'Forgot password?'}
           </button>
         )}
       </section>

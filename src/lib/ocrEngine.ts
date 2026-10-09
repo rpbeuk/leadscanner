@@ -52,7 +52,7 @@ export function validateEmailMatch(
   lastName: string
 ): { warning: boolean; reason?: string } {
   if (!email || !email.includes('@')) {
-    return { warning: true, reason: 'Geen geldig e-mailadres gedetecteerd' };
+    return { warning: true, reason: 'No valid email address detected.' };
   }
 
   const cleanEmail = email.toLowerCase().trim();
@@ -61,7 +61,7 @@ export function validateEmailMatch(
 
   const [localPart, domain] = cleanEmail.split('@');
   if (!domain || !domain.includes('.')) {
-    return { warning: true, reason: 'Domeinnaam van e-mailadres ontbreekt' };
+    return { warning: true, reason: 'The email address is missing a domain name.' };
   }
 
   const firstInitial = cleanFirst.length > 0 ? cleanFirst[0] : '';
@@ -72,7 +72,7 @@ export function validateEmailMatch(
   if (cleanFirst && cleanLast && !hasLast && !hasFirst && !hasInitialAndLast) {
     return {
       warning: true,
-      reason: `E-mail '${email}' lijkt af te wijken van ${firstName} ${lastName}. Controleer a.u.b.`
+      reason: `The email address '${email}' may not match ${firstName} ${lastName}. Please check it.`
     };
   }
 
@@ -409,7 +409,7 @@ async function extractWithAzure(
     const msg = err instanceof Error ? err.message : String(err);
     return {
       error: /failed to fetch|networkerror|load failed/i.test(msg)
-        ? 'Azure: function niet bereikt (niet uitgerold, "Verify JWT" staat aan, of geen internet)'
+        ? 'Azure: function could not be reached (it may not be deployed, "Verify JWT" may be enabled, or there may be no internet connection).'
         : `Azure: ${msg}`
     };
   }
@@ -492,9 +492,9 @@ async function extractLeadFromImage(
 
   const engineError =
     attempts.length === 0
-      ? 'Geen toegangscode of API-sleutel ingesteld (Instellingen). Vul de velden handmatig in.'
+      ? 'No access code or API key is configured (Settings). Enter the fields manually.'
       : errors.length > 0
-        ? `Automatisch uitlezen mislukt (${errors.join(' | ')}). Vul de velden handmatig in.`
+        ? `Automatic form recognition failed (${errors.join(' | ')}). Enter the fields manually.`
         : undefined;
 
   const normalized = sanitizeExtracted(extracted);

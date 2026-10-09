@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 hover:bg-blue-900 border border-blue-800/60 text-xs font-medium text-slate-200 transition-colors"
-            title={`Ingelogd als ${userEmail} · Instellingen & Campagne`}
+            title={`Signed in as ${userEmail} · Settings & campaign`}
           >
             <span className="font-semibold text-white">{campaignId}</span>
             <span className="text-blue-300">•</span>
@@ -54,15 +54,15 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-emerald-400'
                     : 'bg-rose-400'
               }`}
-              title={pendingSyncCount > 0 ? `${pendingSyncCount} offline` : isOnline ? 'Online' : 'Offline'}
+              title={pendingSyncCount > 0 ? `${pendingSyncCount} pending sync` : isOnline ? 'Online' : 'Offline'}
             />
           </button>
           <button
             type="button"
             onClick={onSignOut}
             className="rounded-full border border-blue-800/60 bg-blue-950/80 p-2 text-slate-200 transition-colors hover:bg-blue-900"
-            title={`Uitloggen (${userEmail})`}
-            aria-label="Uitloggen"
+            title={`Sign out (${userEmail})`}
+            aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
           </button>
