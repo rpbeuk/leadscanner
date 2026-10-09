@@ -52,7 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="bg-[#002B49] text-white px-4 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <User className="w-5 h-5 text-orange-400" />
-            <h2 className="font-bold text-base sm:text-lg">Instellingen & Beursconfiguratie</h2>
+            <h2 className="font-bold text-base sm:text-lg">Settings & campaign setup</h2>
           </div>
           <button
             onClick={onClose}
@@ -68,7 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <User className="w-4 h-4 text-blue-900" />
-              <span>Naam van de Beursmedewerker</span>
+              <span>Representative name</span>
             </label>
             <input
               type="text"
@@ -76,10 +76,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               value={repName}
               onChange={(e) => setRepName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-semibold text-slate-900"
-              placeholder="bijv. Aron Overgaauw of Ruben Miltenyi"
+              placeholder="e.g. Aron Overgaauw or Ruben Miltenyi"
             />
             <p className="text-[11px] text-slate-500 mt-1">
-              Wordt permanent op deze telefoon bewaard, maar kan per lead worden aangepast.
+              Saved on this device and can be changed for each lead.
             </p>
           </div>
 
@@ -87,7 +87,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <Tag className="w-4 h-4 text-orange-600" />
-              <span>Campagne ID van deze beurs</span>
+              <span>Campaign ID</span>
             </label>
             <input
               type="text"
@@ -95,19 +95,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               value={campaignId}
               onChange={(e) => setCampaignId(e.target.value.toUpperCase())}
               pattern="^U-\d{4,6}$"
-              title="Formaat moet zijn: U- gevolgd door 5 cijfers (bijv. U-10245)"
+              title="Format: U- followed by 4 to 6 digits (e.g. U-10245)"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono font-bold text-slate-900"
-              placeholder="bijv. U-10245"
+              placeholder="e.g. U-10245"
             />
             <p className="text-[11px] text-slate-500 mt-1">
-              Vast format: <b>U-</b> gevolgd door 5 cijfers (bijv. U-10245).
+              Required format: <b>U-</b> followed by 4 to 6 digits (e.g. U-10245).
             </p>
           </div>
 
           {/* OCR API keys */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Toegangscode Azure OCR (voorkeur)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Azure OCR access code</label>
               <input
                 type="text"
                 autoComplete="off"
@@ -117,12 +117,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-base font-mono text-slate-900"
-                placeholder="bijv. appel-tulp-4821"
+                placeholder="e.g. apple-flower-4821"
               />
             </div>
             {ENGINES.claude && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API-sleutel (reserve 1)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API key (backup 1)</label>
               <input
                 type="password"
                 autoComplete="off"
@@ -135,7 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
             {ENGINES.gemini && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API-sleutel (reserve 2)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Gemini API key (backup 2)</label>
               <input
                 type="password"
                 autoComplete="off"
@@ -147,7 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             )}
             <p className="text-[11px] text-slate-500">
-              De toegangscode wordt alleen op deze telefoon bewaard. Uitlezen gaat via Azure.
+              The access code is stored only on this device. Form recognition runs through Azure.
             </p>
           </div>
 
@@ -155,19 +155,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-emerald-600" /> Supabase Database
+                <Database className="w-4 h-4 text-emerald-600" /> Supabase database
               </span>
               <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                 isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
               }`}>
-                {isOnline ? 'Verbonden' : 'Offline'}
+                {isOnline ? 'Connected' : 'Offline'}
               </span>
             </div>
             <p className="text-slate-500 text-[11px] break-all">
               Host: <span className="font-mono text-slate-700">{new URL(supabaseUrl).host}</span>
             </p>
             <div className="pt-2 flex items-center justify-between border-t border-slate-200">
-              <span className="text-slate-600">Handmatige cloudsynchronisatie:</span>
+              <span className="text-slate-600">Manual cloud sync:</span>
               <button
                 type="button"
                 onClick={onTriggerSync}
@@ -175,14 +175,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Bezig...' : 'Sync nu'}</span>
+                <span>{isSyncing ? 'Syncing...' : 'Sync now'}</span>
               </button>
             </div>
           </div>
 
           <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 text-[11px] text-blue-900">
             <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0" />
-            <span>Alle scans worden eerst lokaal opgeslagen en vervolgens veilig naar Supabase gestuurd.</span>
+            <span>Scans are saved locally first, then securely sent to Supabase.</span>
           </div>
 
           {/* Footer Action */}
@@ -192,14 +192,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
             >
-              Sluiten
+              Close
             </button>
             <button
               type="submit"
               className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-md flex items-center gap-1.5 transition-colors"
             >
               {savedNotice ? <Check className="w-4 h-4" /> : null}
-              <span>{savedNotice ? 'Opgeslagen!' : 'Opslaan & Toepassen'}</span>
+              <span>{savedNotice ? 'Saved!' : 'Save & apply'}</span>
             </button>
           </div>
         </form>

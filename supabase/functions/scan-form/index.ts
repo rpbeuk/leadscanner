@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
   const accessCode = Deno.env.get('SCAN_ACCESS_CODE');
   if (!endpoint || !key || !deployment || !accessCode) return json({ error: 'Function is not configured (missing secrets)' }, 500);
 
-  if (req.headers.get('x-access-code') !== accessCode) return json({ error: 'Ongeldige toegangscode' }, 401);
+  if (req.headers.get('x-access-code') !== accessCode) return json({ error: 'Invalid access code' }, 401);
 
   let image: string;
   try {
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     }
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) return json({ error: 'Azure gaf geen resultaat terug' }, 502);
+    if (!content) return json({ error: 'Azure returned no result' }, 502);
     return json(JSON.parse(content));
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 502);

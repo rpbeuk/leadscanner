@@ -4,7 +4,7 @@ import type { Lead } from '../types';
 export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
   // Map leads to the required 7 columns + metadata
   const rows = leads.map((lead, index) => ({
-    'Nr': index + 1,
+    'No.': index + 1,
     'Campaign ID': lead.campaign_id || campaignId,
     'First Name': lead.first_name,
     'Last Name': lead.last_name,
@@ -16,7 +16,7 @@ export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
     'Collected By': lead.collected_by,
     'CRM Level': lead.matched_account_level || 'N/A',
     'Email Validated': lead.email_warning ? 'Check Required' : 'OK',
-    'Date Scanned': new Date(lead.created_at).toLocaleString('nl-NL')
+    'Date Scanned': new Date(lead.created_at).toLocaleString('en-GB')
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -49,23 +49,25 @@ export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
 
 export function openMarketingMailClient(leads: Lead[], campaignId: string, repName: string): void {
   const recipient = 'marketing_BNL@Miltenyi.com';
-  const todayStr = new Date().toLocaleDateString('nl-NL');
-  const subject = encodeURIComponent(`[Miltenyi Leads] Dagafsluiting Campagne ${campaignId} - ${todayStr}`);
+  const fileDate = new Date().toISOString().split('T')[0];
+  const displayDate = new Date().toLocaleDateString('en-GB');
+  const filename = `Miltenyi_Leads_${campaignId}_${fileDate}.xlsx`;
+  const subject = encodeURIComponent(`[Miltenyi Leads] End-of-day report for campaign ${campaignId} - ${displayDate}`);
   
-  const bodyText = `Beste Marketing Team,
+  const bodyText = `Dear Marketing Team,
 
-Hierbij de dagrapportage van de contactformulieren voor beurscampagne ${campaignId}.
+Please find the end-of-day report for contact forms collected at campaign ${campaignId}.
 
-Samenvatting:
-- Datum: ${todayStr}
-- Campagne: ${campaignId}
-- Ingezonden door: ${repName}
-- Totaal aantal leads: ${leads.length}
-- Waarvan nieuwsbrief opt-in: ${leads.filter(l => l.newsletter_opt_in).length}
+Summary:
+- Date: ${displayDate}
+- Campaign: ${campaignId}
+- Submitted by: ${repName}
+- Total leads: ${leads.length}
+- Newsletter opt-ins: ${leads.filter(l => l.newsletter_opt_in).length}
 
-Het bijbehorende Excel-bestand (Miltenyi_Leads_${campaignId}_${todayStr}.xlsx) is zojuist gedownload en kan als bijlage bij deze e-mail worden gevoegd.
+The corresponding Excel file (${filename}) has just been downloaded and can be attached to this email.
 
-Met vriendelijke groet,
+Kind regards,
 ${repName}
 Miltenyi Biotec B.V.
 `;

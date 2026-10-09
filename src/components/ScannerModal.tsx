@@ -163,7 +163,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       {/* Top Bar */}
       <div className="px-5 py-4 flex items-center justify-between text-white z-10 bg-gradient-to-b from-black/80 to-transparent">
         <span className="text-sm font-semibold tracking-wide text-slate-200">
-          Miltenyi Contactformulier Scanner
+          Miltenyi Contact Form Scanner
         </span>
         <button
           onClick={() => {
@@ -197,7 +197,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
               <span>MILTENYI ┐</span>
             </div>
             <div className="text-center text-xs font-medium text-white/80 bg-black/40 backdrop-blur-sm py-1.5 px-3 rounded-full mx-auto">
-              Lijn formulier uit in het kader
+              Align the form within the frame
             </div>
             <div className="flex justify-between text-[11px] font-mono text-white/70">
               <span>└ RESEARCH</span>
@@ -213,13 +213,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
               <Camera className="w-8 h-8" />
             </div>
 
-            <h3 className="text-base font-bold mb-1">Cameratoegang Nodig</h3>
+            <h3 className="text-base font-bold mb-1">Camera access required</h3>
             <p className="text-xs text-slate-300 max-w-xs mb-3 leading-relaxed">
-              Tik hieronder om cameratoestemming te geven en direct een formulier te fotograferen.
+              Tap below to allow camera access and take a photo of a form.
             </p>
             {cameraError === 'permission_blocked' && (
               <p className="text-xs text-amber-400 bg-amber-950/60 border border-amber-500/30 rounded-lg px-3 py-1.5 mb-3 max-w-xs">
-                Toegang geweigerd in browser. Tik op "Open Direct Telefoon Camera" hieronder.
+                Camera access was denied in the browser. Tap "Open phone camera" below.
               </p>
             )}
 
@@ -237,7 +237,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
                 className="w-full py-3.5 rounded-2xl bg-orange-600 hover:bg-orange-500 active:scale-95 text-white text-sm font-bold shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 transition-all"
               >
                 <Camera className="w-5 h-5" />
-                <span>Geef Cameratoestemming</span>
+                <span>Allow camera access</span>
               </button>
 
               {/* Native Mobile Camera Button */}
@@ -247,7 +247,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
                 className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Open Direct Telefoon Camera</span>
+                <span>Open phone camera</span>
               </button>
 
               {/* Gallery Pick */}
@@ -257,7 +257,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
                 className="w-full py-2.5 rounded-xl border border-white/20 hover:bg-white/10 text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors mt-1"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Foto uit bibliotheek kiezen</span>
+                <span>Choose a photo</span>
               </button>
             </div>
           </div>
@@ -269,9 +269,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-3" />
             <p className="text-sm font-bold flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-orange-400" />
-              <span>AI analyseert formulier...</span>
+              <span>AI is analyzing the form...</span>
             </p>
-            <p className="text-xs text-slate-400 mt-1">Uitsnedes genereren en 7 velden extraheren</p>
+            <p className="text-xs text-slate-400 mt-1">Creating crops and extracting 7 fields</p>
           </div>
         )}
       </div>
@@ -283,7 +283,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="p-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-          title="Foto uit bibliotheek"
+          title="Choose a photo"
         >
           <Upload className="w-5 h-5" />
         </button>
@@ -300,7 +300,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             }
           }}
           className="w-18 h-18 rounded-full bg-white p-1 shadow-lg active:scale-95 transition-transform"
-          title="Maak foto"
+          title="Take photo"
         >
           <div className="w-16 h-16 rounded-full bg-orange-600 hover:bg-orange-500 flex items-center justify-center text-white">
             <Camera className="w-7 h-7" />
@@ -312,7 +312,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           type="button"
           onClick={() => nativeCameraInputRef.current?.click()}
           className="p-3.5 rounded-full bg-white/10 hover:bg-white/20 text-orange-400 transition-colors"
-          title="Direct iPhone Camera"
+          title="Open phone camera"
         >
           <Camera className="w-5 h-5" />
         </button>

@@ -62,7 +62,7 @@ export function App() {
       setAuthReady(true);
     }).catch((err: unknown) => {
       if (!mounted) return;
-      setAuthError(err instanceof Error ? err.message : 'Kan de inlogsessie niet controleren.');
+      setAuthError(err instanceof Error ? err.message : 'Unable to check the sign-in session.');
       setAuthReady(true);
     });
 
@@ -125,7 +125,7 @@ export function App() {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Sign-out failed:', error);
-      alert(`Uitloggen is niet gelukt: ${error.message}`);
+      alert(`Could not sign out: ${error.message}`);
     }
   };
 
@@ -153,7 +153,7 @@ export function App() {
     } catch (err) {
       console.error('Scan processing error:', err);
       setIsProcessingDirectScan(false);
-      alert('Er is een fout opgetreden bij het analyseren van het formulier. Probeer het opnieuw.');
+      alert('An error occurred while analyzing the form. Please try again.');
     }
   };
 
@@ -188,10 +188,10 @@ export function App() {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <section className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-bold text-slate-900">Supabase-configuratie ontbreekt</h1>
+          <h1 className="text-lg font-bold text-slate-900">Supabase configuration missing</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Stel <code>VITE_SUPABASE_URL</code> en <code>VITE_SUPABASE_ANON_KEY</code> in voor je nieuwe project
-            in het lokale <code>.env</code>-bestand en in GitHub Actions Secrets. Gebruik alleen de publishable key.
+            Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> for your new project
+            in the local <code>.env</code> file and in GitHub Actions secrets. Use only the publishable key.
           </p>
         </section>
       </main>
@@ -201,7 +201,7 @@ export function App() {
   if (!authReady) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600">
-        <Loader2 className="h-6 w-6 animate-spin" aria-label="Inlogsessie controleren" />
+        <Loader2 className="h-6 w-6 animate-spin" aria-label="Checking sign-in session" />
       </main>
     );
   }
@@ -222,7 +222,7 @@ export function App() {
       <Header
         repName={repName}
         campaignId={campaignId}
-        userEmail={session.user.email || 'Ingelogde medewerker'}
+        userEmail={session.user.email || 'Signed-in user'}
         isOnline={isOnline}
         pendingSyncCount={pendingCount}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -252,10 +252,10 @@ export function App() {
           </div>
           <h3 className="text-base font-bold flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-orange-400" />
-            <span>AI analyseert formulier...</span>
+            <span>AI is analyzing the form...</span>
           </h3>
           <p className="text-xs text-slate-300 mt-1 max-w-xs">
-            Handschrift transcriberen, 7 velden extraheren en uitsnedes maken
+            Transcribing handwriting, extracting 7 fields, and creating crops
           </p>
         </div>
       )}
