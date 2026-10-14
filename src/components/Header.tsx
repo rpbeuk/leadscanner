@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 hover:bg-blue-900 border border-blue-800/60 text-xs font-medium text-slate-200 transition-colors"
-            title={`Signed in as ${userEmail} · Settings & campaign`}
+            title={`Signed in as ${userEmail} · Event settings`}
           >
             <span className="font-semibold text-white">{campaignId}</span>
             <span className="text-blue-300">•</span>

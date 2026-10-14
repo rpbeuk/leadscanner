@@ -8,9 +8,10 @@ const DB_VERSION = 1;
 // Default Rep and Campaign storage keys
 const KEY_REP = 'miltenyi_rep_name';
 const KEY_CAMPAIGN = 'miltenyi_campaign_id';
+export const DEFAULT_REP_NAME = 'Max Mustermann';
 
 export function getSavedRepName(): string {
-  return localStorage.getItem(KEY_REP) || 'Aron Overgaauw';
+  return localStorage.getItem(KEY_REP) || DEFAULT_REP_NAME;
 }
 
 export function saveRepName(name: string): void {
