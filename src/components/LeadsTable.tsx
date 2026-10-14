@@ -387,54 +387,54 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="fast-scan-title"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4 text-white backdrop-blur-sm"
+          className="fixed inset-0 z-40 overflow-hidden bg-black text-white"
         >
-          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-white/15 bg-slate-900 p-4 text-center shadow-2xl">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-200">Fast lead scanner</span>
-              <button
-                type="button"
-                onClick={() => setIsFastScanActive(false)}
-                aria-label="Close fast scanner"
-                className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          <video
+            ref={fastVideoRef}
+            autoPlay
+            muted
+            playsInline
+            onLoadedMetadata={(event) => {
+              void event.currentTarget.play().catch((error: unknown) => {
+                console.error('Unable to play the fast scanner camera preview:', error);
+                setFastCameraError('The camera preview could not start. Close and reopen the fast scanner.');
+              });
+            }}
+            className="absolute inset-0 h-full w-full object-cover"
+            aria-label="Live camera preview"
+          />
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))]">
+            <div>
+              <h2 id="fast-scan-title" className="text-base font-bold">Fast lead scanner</h2>
+              <p className="text-xs text-white/80">One photo per lead</p>
             </div>
-            <h2 id="fast-scan-title" className="text-base font-bold">One photo per lead</h2>
-            <div className="mt-3 overflow-hidden rounded-xl bg-black">
-              <video
-                ref={fastVideoRef}
-                autoPlay
-                muted
-                playsInline
-                onLoadedMetadata={(event) => {
-                  void event.currentTarget.play().catch((error: unknown) => {
-                    console.error('Unable to play the fast scanner camera preview:', error);
-                    setFastCameraError('The camera preview could not start. Close and reopen the fast scanner.');
-                  });
-                }}
-                className="aspect-[3/4] max-h-[36dvh] w-full object-cover"
-                aria-label="Live camera preview"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsFastScanActive(false)}
+              aria-label="Close fast scanner"
+              className="rounded-lg bg-black/30 p-2 text-white hover:bg-black/50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-16 text-center">
             {isFastCameraStarting && (
-              <p className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-300">
+              <p className="mb-3 flex items-center justify-center gap-2 text-sm text-white">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Starting camera...
               </p>
             )}
             {fastCameraError && (
-              <p role="alert" className="mt-3 text-sm text-red-300">{fastCameraError}</p>
+              <p role="alert" className="mb-3 text-sm text-red-200">{fastCameraError}</p>
             )}
-            <p className="mt-2 text-xs font-semibold text-slate-400">
+            <p className="mb-3 text-xs font-semibold text-white/90">
               Photos captured: {fastScanCount}
             </p>
             <button
               type="button"
               onClick={captureFastScanImage}
               disabled={isFastCameraStarting || Boolean(fastCameraError)}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
+              className="mx-auto inline-flex min-h-14 w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
             >
               {isFastCameraStarting ? (
                 <>
@@ -448,10 +448,10 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 </>
               )}
             </button>
-            <p className="mt-2 text-xs text-slate-300">
+            <p className="mt-2 text-xs text-white/90">
               Stays open between photos; scans run in the background.
             </p>
-            <p className="mt-1 text-[11px] text-slate-400">Returns to overview after 10 seconds idle.</p>
+            <p className="mt-1 text-[11px] text-white/70">Returns to overview after 10 seconds idle.</p>
           </div>
         </div>
       )}

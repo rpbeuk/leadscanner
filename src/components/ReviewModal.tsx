@@ -205,7 +205,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
           {/* E-mail Mismatch Warning */}
           {lead.email_warning && (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 shadow-sm">
@@ -365,7 +365,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-slate-50 px-5 py-3.5 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="sticky bottom-0 z-20 shrink-0 bg-slate-50 px-3 sm:px-5 py-3.5 border-t border-slate-200 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {hasPrev && (
               <button
