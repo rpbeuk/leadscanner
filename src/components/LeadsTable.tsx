@@ -389,8 +389,8 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           aria-labelledby="fast-scan-title"
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4 text-white backdrop-blur-sm"
         >
-          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-900 p-5 text-center shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-white/15 bg-slate-900 p-4 text-center shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-200">Fast lead scanner</span>
               <button
                 type="button"
@@ -401,14 +401,8 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-400">
-              <CameraStack className="h-9 w-9" />
-            </div>
-            <h2 id="fast-scan-title" className="text-lg font-bold">Capture forms one after another</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              The scanner returns to the overview after 10 seconds without activity.
-            </p>
-            <div className="mt-4 overflow-hidden rounded-xl bg-black">
+            <h2 id="fast-scan-title" className="text-base font-bold">One photo per lead</h2>
+            <div className="mt-3 overflow-hidden rounded-xl bg-black">
               <video
                 ref={fastVideoRef}
                 autoPlay
@@ -420,7 +414,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                     setFastCameraError('The camera preview could not start. Close and reopen the fast scanner.');
                   });
                 }}
-                className="aspect-[3/4] w-full object-cover"
+                className="aspect-[3/4] max-h-[36dvh] w-full object-cover"
                 aria-label="Live camera preview"
               />
             </div>
@@ -433,14 +427,14 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             {fastCameraError && (
               <p role="alert" className="mt-3 text-sm text-red-300">{fastCameraError}</p>
             )}
-            <p className="mt-3 text-xs font-semibold text-slate-400">
+            <p className="mt-2 text-xs font-semibold text-slate-400">
               Photos captured: {fastScanCount}
             </p>
             <button
               type="button"
               onClick={captureFastScanImage}
               disabled={isFastCameraStarting || Boolean(fastCameraError)}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
             >
               {isFastCameraStarting ? (
                 <>
@@ -455,8 +449,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               )}
             </button>
             <p className="mt-2 text-xs text-slate-300">
-              Keep the camera open and capture one photo for each lead. Photos are analyzed in the background.
+              Stays open between photos; scans run in the background.
             </p>
+            <p className="mt-1 text-[11px] text-slate-400">Returns to overview after 10 seconds idle.</p>
           </div>
         </div>
       )}
