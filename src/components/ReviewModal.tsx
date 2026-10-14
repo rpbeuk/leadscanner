@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Lead } from '../types';
-import { AlertTriangle, Check, X, Building, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, X, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
 import { matchCrmAccount } from '../lib/crmAccounts';
 
@@ -148,7 +148,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             {/* Email */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Email* (Required for follow-up)</span>
+                <span>Email* (Essential for follow-up)</span>
                 {lead.email_warning && (
                   <span className="text-[11px] text-amber-600 font-normal">⚠️ Mismatch detected</span>
                 )}
@@ -172,7 +172,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             {/* University / Institution */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                University / Institution / Company (CRM levels 1/2)
+                University / Institution / Company (CRM level 1)
               </label>
               <input
                 type="text"
@@ -197,36 +197,12 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               />
             </div>
 
-            {/* CRM Matching Advice Pill */}
-            <div className="sm:col-span-2 bg-blue-50/70 rounded-xl p-3 border border-blue-200/80 text-xs">
-              <div className="flex items-center gap-1.5 font-semibold text-blue-900 mb-1">
-                <Building className="w-4 h-4 text-blue-700" />
-                <span>CRM hierarchy match (~3,500 account levels)</span>
-              </div>
-              <p className="text-slate-600">
-                {lead.matched_account_level === 'level_3' ? (
-                  <span className="text-emerald-700 font-medium">
-                    ✓ Exact match for institution and department (level 3).
-                  </span>
-                ) : lead.matched_account_level === 'fallback_level_1' ? (
-                  <span className="text-amber-700 font-medium">
-                    ℹ️ No exact match found in the CRM list. Automatically using <b>level 1 (parent institution)</b>.
-                  </span>
-                ) : (
-                  <span className="text-slate-500">
-                    No match found in the CRM reference list. This will be registered as a new account.
-                  </span>
-                )}
-              </p>
-            </div>
-
             {/* Research Support Notes (Large Box) */}
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-700">
-                  How can we support you with your research? (Product interest / notes)
+                  Notes
                 </label>
-                <span className="text-[11px] text-slate-500">Preserved verbatim</span>
               </div>
               <textarea
                 rows={4}
@@ -305,7 +281,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors flex items-center gap-1.5"
               >
                 <Eye className="w-4 h-4" />
-                View original photo
+                View photo
               </button>
             )}
             <button
