@@ -394,7 +394,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex -translate-y-2 items-center gap-2">
             {lead.image_url && (
               <button
                 type="button"
