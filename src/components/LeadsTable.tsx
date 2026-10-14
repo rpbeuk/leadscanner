@@ -12,12 +12,14 @@ import {
   Upload
 } from 'lucide-react';
 import { openMarketingMailClient, exportLeadsToExcel } from '../lib/excelExport';
+import { isActualRepName } from '../lib/storage';
 
 interface LeadsTableProps {
   leads: Lead[];
   activeCampaignId: string;
   repName: string;
   eventEmail: string;
+  onRequireRepName: () => void;
   onDirectImageCaptured: (dataUrl: string) => void;
   onSelectLead: (lead: Lead) => void;
 }
@@ -27,6 +29,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   activeCampaignId,
   repName,
   eventEmail,
+  onRequireRepName,
   onDirectImageCaptured,
   onSelectLead
 }) => {
@@ -34,9 +37,22 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  const openCaptureInput = (inputRef: React.RefObject<HTMLInputElement | null>) => {
+    if (!isActualRepName(repName)) {
+      onRequireRepName();
+      return;
+    }
+    inputRef.current?.click();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (!isActualRepName(repName)) {
+      e.target.value = '';
+      onRequireRepName();
+      return;
+    }
     const file = files[0];
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -148,7 +164,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <button
                 type="button"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => openCaptureInput(cameraInputRef)}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
               >
                 <Camera className="w-4 h-4" />
@@ -156,7 +172,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => galleryInputRef.current?.click()}
+                onClick={() => openCaptureInput(galleryInputRef)}
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Upload className="w-3.5 h-3.5 text-slate-500" />
@@ -241,7 +257,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         {/* Gallery / Files */}
         <button
           type="button"
-          onClick={() => galleryInputRef.current?.click()}
+          onClick={() => openCaptureInput(galleryInputRef)}
           className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
           title="Upload a photo from your gallery"
         >
@@ -251,7 +267,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         {/* Primary Scan Button (Prompts for camera permission & opens camera directly) */}
         <button
           type="button"
-          onClick={() => cameraInputRef.current?.click()}
+          onClick={() => openCaptureInput(cameraInputRef)}
           className="pointer-events-auto px-7 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2.5 transition-all border-2 border-white ring-2 ring-orange-400/20"
         >
           <Camera className="w-5 h-5" />

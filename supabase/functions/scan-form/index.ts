@@ -32,9 +32,10 @@ RULES
 - Transcribe verbatim. Do NOT paraphrase, translate, correct spelling or invent. Keep abbreviations (MACS, CAR-T, PBMC, REAfinity, CD34+, LS, MS...) exactly as written.
 - NEVER copy printed text (labels, the question, the newsletter sentence) into any field.
 - Every answer belongs in exactly one field. If a field is empty or unreadable, return "" for it. Do not move text from one field to another to fill a gap.
+- Capture all other legible handwriting that does not clearly belong to one of the named fields in notes, including writing below or outside the notes rectangle and in the form margins. Append it after the notes text in reading order, preserving original wording and line breaks. Do not duplicate handwriting already assigned to another field or include printed text.
 - email: no spaces, lowercase, must contain @ if legible.
 - The photo may be rotated, skewed or taken at an angle. Find the fields by their printed labels, not by fixed positions.
-- For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box all handwriting in the rectangle. Use an empty array for an empty field.
+- For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, box all handwriting assigned to notes, including any extra writing outside the rectangle. Use an empty array for an empty field.
 - In confidence_flags list individual words you are unsure about (confidence 0-1).`;
 
 // Strict mode: every property required, no optional keys

@@ -1,8 +1,109 @@
 import React, { useRef, useState } from 'react';
-import type { Lead } from '../types';
+import type { ConfidenceFlag, Lead } from '../types';
 import { AlertTriangle, Check, X, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
 import { matchCrmAccount } from '../lib/crmAccounts';
+
+interface ConfidenceMatch {
+  start: number;
+  end: number;
+  confidence: number;
+  word: string;
+  reason?: string;
+}
+
+function findConfidenceMatches(text: string, flags: ConfidenceFlag[]): ConfidenceMatch[] {
+  return flags
+    .filter((flag) => flag.word.trim())
+    .flatMap((flag) => {
+      const word = flag.word.trim();
+      const escapedWord = word.split(/\s+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
+      const startsWithWordCharacter = /^[\p{L}\p{N}_]/u.test(word);
+      const endsWithWordCharacter = /[\p{L}\p{N}_]$/u.test(word);
+      const pattern = new RegExp(
+        `${startsWithWordCharacter ? '(?<![\\p{L}\\p{N}_])' : ''}${escapedWord}${endsWithWordCharacter ? '(?![\\p{L}\\p{N}_])' : ''}`,
+        'giu'
+      );
+      return Array.from(text.matchAll(pattern), (match) => ({
+        start: match.index,
+        end: match.index + match[0].length,
+        confidence: Math.max(0, Math.min(1, flag.confidence)),
+        word: match[0],
+        reason: flag.reason
+      }));
+    })
+    .sort((a, b) => a.start - b.start || a.confidence - b.confidence);
+}
+
+function renderConfidenceText(text: string, matches: ConfidenceMatch[]): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  matches.forEach((match, index) => {
+    if (match.start < cursor) return;
+    parts.push(
+      <span key={`plain-${cursor}-${index}`}>
+        {text.slice(cursor, match.start)}
+      </span>
+    );
+    parts.push(
+      <span
+        key={`${match.start}-${index}`}
+        title={`OCR confidence: ${Math.round(match.confidence * 100)}%${match.reason ? ` - ${match.reason}` : ''}`}
+        style={{ color: 'rgb(234, 178, 22)' }}
+      >
+        {match.word}
+      </span>
+    );
+    cursor = match.end;
+  });
+  parts.push(<span key={`plain-${cursor}-end`}>{text.slice(cursor)}</span>);
+  return parts;
+}
+
+interface ConfidenceTextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  value: string;
+  confidenceFlags: ConfidenceFlag[];
+  overlayPaddingClassName?: string;
+  leadingIcon?: React.ReactNode;
+  onValueChange: (value: string) => void;
+}
+
+const ConfidenceTextInput: React.FC<ConfidenceTextInputProps> = ({
+  value,
+  confidenceFlags,
+  overlayPaddingClassName = 'px-3',
+  leadingIcon,
+  onValueChange,
+  className = '',
+  ...inputProps
+}) => {
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const matches = findConfidenceMatches(value, confidenceFlags);
+
+  return (
+    <div className="relative">
+      {matches.length > 0 && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-px z-20 flex items-center overflow-hidden font-sans text-sm font-medium leading-normal text-slate-900 ${overlayPaddingClassName}`}
+        >
+          <div className="whitespace-pre" style={{ transform: `translateX(-${scrollLeft}px)` }}>
+            {renderConfidenceText(value, matches)}
+          </div>
+        </div>
+      )}
+      <input
+        {...inputProps}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
+        className={`${className} ${matches.length > 0 ? 'text-transparent' : ''}`}
+      />
+      {leadingIcon}
+    </div>
+  );
+};
 
 interface ReviewModalProps {
   lead: Lead;
@@ -34,56 +135,10 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   const [notesScrollTop, setNotesScrollTop] = useState(0);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const noteMatches = lead.confidence_flags
-    .filter((flag) => flag.word.trim())
-    .flatMap((flag) => {
-      const word = flag.word.trim();
-      const escapedWord = word.split(/\s+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
-      const startsWithWordCharacter = /^[\p{L}\p{N}_]/u.test(word);
-      const endsWithWordCharacter = /[\p{L}\p{N}_]$/u.test(word);
-      const pattern = new RegExp(
-        `${startsWithWordCharacter ? '(?<![\\p{L}\\p{N}_])' : ''}${escapedWord}${endsWithWordCharacter ? '(?![\\p{L}\\p{N}_])' : ''}`,
-        'giu'
-      );
-      return Array.from(lead.notes.matchAll(pattern), (match) => ({
-        start: match.index,
-        end: match.index + match[0].length,
-        confidence: Math.max(0, Math.min(1, flag.confidence)),
-        word: match[0],
-        reason: flag.reason
-      }));
-    })
-    .sort((a, b) => a.start - b.start || a.confidence - b.confidence);
+  const noteMatches = findConfidenceMatches(lead.notes, lead.confidence_flags);
 
   const renderNotesWithConfidence = () => {
-    const parts: React.ReactNode[] = [];
-    let cursor = 0;
-
-    noteMatches.forEach((match, index) => {
-      if (match.start < cursor) return;
-      parts.push(
-        <span key={`plain-${cursor}-${index}`}>
-          {lead.notes.slice(cursor, match.start)}
-        </span>
-      );
-      parts.push(
-        <span
-          key={`${match.start}-${index}`}
-          title={`OCR confidence: ${Math.round(match.confidence * 100)}%${match.reason ? ` - ${match.reason}` : ''}`}
-          style={{ color: 'rgb(234, 178, 22)' }}
-        >
-          {match.word}
-        </span>
-      );
-      cursor = match.end;
-    });
-
-    parts.push(
-      <span key={`plain-${cursor}-end`}>
-        {lead.notes.slice(cursor)}
-      </span>
-    );
-    return parts;
+    return renderConfidenceText(lead.notes, noteMatches);
   };
 
   const handleFieldChange = (field: keyof Lead, value: any) => {
@@ -176,10 +231,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 First name*
               </label>
-              <input
+              <ConfidenceTextInput
                 type="text"
                 value={lead.first_name}
-                onChange={(e) => handleFieldChange('first_name', e.target.value)}
+                confidenceFlags={lead.confidence_flags}
+                onValueChange={(value) => handleFieldChange('first_name', value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] focus:border-transparent text-sm font-medium"
                 placeholder="e.g. Sophie"
               />
@@ -190,10 +246,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Last name*
               </label>
-              <input
+              <ConfidenceTextInput
                 type="text"
                 value={lead.last_name}
-                onChange={(e) => handleFieldChange('last_name', e.target.value)}
+                confidenceFlags={lead.confidence_flags}
+                onValueChange={(value) => handleFieldChange('last_name', value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] focus:border-transparent text-sm font-medium"
                 placeholder="e.g. van den Berg"
               />
@@ -207,20 +264,20 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                   <span className="text-[11px] text-amber-600 font-normal">⚠️ Mismatch detected</span>
                 )}
               </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={lead.email}
-                  onChange={(e) => handleFieldChange('email', e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm font-medium focus:ring-2 focus:ring-[#002B49] ${
-                    lead.email_warning
-                      ? 'border-amber-400 bg-amber-50/30'
-                      : 'border-slate-300 focus:border-transparent'
-                  }`}
-                  placeholder="e.g. s.vdberg@nki.nl"
-                />
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              </div>
+              <ConfidenceTextInput
+                type="email"
+                value={lead.email}
+                confidenceFlags={lead.confidence_flags}
+                onValueChange={(value) => handleFieldChange('email', value)}
+                overlayPaddingClassName="pl-9 pr-3"
+                className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm font-medium focus:ring-2 focus:ring-[#002B49] ${
+                  lead.email_warning
+                    ? 'border-amber-400 bg-amber-50/30'
+                    : 'border-slate-300 focus:border-transparent'
+                }`}
+                placeholder="e.g. s.vdberg@nki.nl"
+                leadingIcon={<Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 z-30" />}
+              />
             </div>
 
             {/* University / Institution */}
@@ -228,10 +285,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 University / Institution / Company (CRM level 1)
               </label>
-              <input
+              <ConfidenceTextInput
                 type="text"
                 value={lead.institute}
-                onChange={(e) => handleFieldChange('institute', e.target.value)}
+                confidenceFlags={lead.confidence_flags}
+                onValueChange={(value) => handleFieldChange('institute', value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-medium"
                 placeholder="e.g. NKI - Antoni van Leeuwenhoek"
               />
@@ -242,10 +300,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Department (CRM level 3)
               </label>
-              <input
+              <ConfidenceTextInput
                 type="text"
                 value={lead.department}
-                onChange={(e) => handleFieldChange('department', e.target.value)}
+                confidenceFlags={lead.confidence_flags}
+                onValueChange={(value) => handleFieldChange('department', value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-medium"
                 placeholder="e.g. Division of Immunology"
               />
