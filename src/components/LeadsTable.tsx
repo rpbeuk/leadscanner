@@ -69,10 +69,10 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       <div className="flex items-center justify-between px-1">
         <div>
           <h1 className="text-lg font-bold text-slate-900 leading-tight">
-            Contact forms
+            Event Lead forms
           </h1>
           <p className="text-xs text-slate-500">
-            {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} in database ({activeCampaignId})
+            {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} in database
           </p>
         </div>
 

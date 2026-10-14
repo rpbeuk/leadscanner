@@ -2,7 +2,6 @@ import React from 'react';
 import { LogOut } from 'lucide-react';
 
 interface HeaderProps {
-  repName: string;
   campaignId: string;
   userEmail: string;
   isOnline: boolean;
@@ -12,7 +11,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  repName,
   campaignId,
   userEmail,
   isOnline,
@@ -44,8 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
             title={`Signed in as ${userEmail} · Event settings`}
           >
             <span className="font-semibold text-white">{campaignId}</span>
-            <span className="text-blue-300">•</span>
-            <span className="max-w-[80px] sm:max-w-[120px] truncate text-slate-300">{repName}</span>
             <span
               className={`w-2 h-2 rounded-full shrink-0 ${
                 pendingSyncCount > 0

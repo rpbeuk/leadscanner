@@ -206,7 +206,6 @@ export function App() {
     <div className="min-h-screen max-w-full overflow-x-hidden bg-slate-50 flex flex-col font-sans text-slate-900 pb-12">
       {/* Global Header */}
       <Header
-        repName={repName}
         campaignId={campaignId}
         userEmail={session.user.email || 'Signed-in user'}
         isOnline={isOnline}
