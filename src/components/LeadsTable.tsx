@@ -11,12 +11,13 @@ import {
   ChevronRight,
   Upload
 } from 'lucide-react';
-import { downloadMarketingEmailDraft, exportLeadsToExcel } from '../lib/excelExport';
+import { openMarketingMailClient, exportLeadsToExcel } from '../lib/excelExport';
 
 interface LeadsTableProps {
   leads: Lead[];
   activeCampaignId: string;
   repName: string;
+  eventEmail: string;
   onDirectImageCaptured: (dataUrl: string) => void;
   onSelectLead: (lead: Lead) => void;
   onDeleteLead: (id: string) => void;
@@ -26,6 +27,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   leads,
   activeCampaignId,
   repName,
+  eventEmail,
   onDirectImageCaptured,
   onSelectLead,
   onDeleteLead
@@ -89,9 +91,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
             <button
               type="button"
-              onClick={() => downloadMarketingEmailDraft(campaignLeads, activeCampaignId, repName)}
+              onClick={() => openMarketingMailClient(campaignLeads, activeCampaignId, repName, eventEmail)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Download email draft with Excel attachment"
+              title="Open email draft; attach the Excel export manually"
             >
               <Mail className="w-3.5 h-3.5 text-blue-900" />
               <span className="hidden sm:inline">Mail</span>

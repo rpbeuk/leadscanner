@@ -8,7 +8,9 @@ const DB_VERSION = 1;
 // Default Rep and Campaign storage keys
 const KEY_REP = 'miltenyi_rep_name';
 const KEY_CAMPAIGN = 'miltenyi_campaign_id';
+const KEY_EVENT_EMAIL = 'leadscanner_event_email';
 export const DEFAULT_REP_NAME = 'Max Mustermann';
+export const DEFAULT_EVENT_EMAIL = 'marketing_BNL@miltenyi.com';
 
 export function getSavedRepName(): string {
   return localStorage.getItem(KEY_REP) || DEFAULT_REP_NAME;
@@ -24,6 +26,14 @@ export function getSavedCampaignId(): string {
 
 export function saveCampaignId(id: string): void {
   localStorage.setItem(KEY_CAMPAIGN, id.trim());
+}
+
+export function getSavedEventEmail(): string {
+  return localStorage.getItem(KEY_EVENT_EMAIL) || DEFAULT_EVENT_EMAIL;
+}
+
+export function saveEventEmail(email: string): void {
+  localStorage.setItem(KEY_EVENT_EMAIL, email.trim());
 }
 
 function openDB(): Promise<IDBDatabase> {

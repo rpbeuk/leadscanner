@@ -5,6 +5,7 @@ import type { Lead } from './types';
 import { 
   getSavedRepName, 
   getSavedCampaignId, 
+  getSavedEventEmail,
   getAllLocalLeads, 
   saveLocalLead, 
   deleteLocalLead, 
@@ -29,6 +30,7 @@ export function App() {
   );
   const [repName, setRepName] = useState<string>(getSavedRepName);
   const [campaignId, setCampaignId] = useState<string>(getSavedCampaignId);
+  const [eventEmail, setEventEmail] = useState<string>(getSavedEventEmail);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -219,6 +221,7 @@ export function App() {
           leads={leads}
           activeCampaignId={campaignId}
           repName={repName}
+          eventEmail={eventEmail}
           onDirectImageCaptured={handleDirectImageCaptured}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
@@ -257,9 +260,11 @@ export function App() {
         <SettingsModal
           currentRepName={repName}
           currentCampaignId={campaignId}
-          onUpdate={(newRep, newCamp) => {
+          currentEventEmail={eventEmail}
+          onUpdate={(newRep, newCamp, newEmail) => {
             setRepName(newRep);
             setCampaignId(newCamp);
+            setEventEmail(newEmail);
             loadLeads();
           }}
           onClose={() => setIsSettingsOpen(false)}

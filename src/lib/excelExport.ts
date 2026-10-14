@@ -54,30 +54,11 @@ export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
   XLSX.writeFile(workbook, getExcelFilename(campaignId, todayStr));
 }
 
-function encodeBase64Utf8(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function wrapBase64(value: string): string {
-  return value.match(/.{1,76}/g)?.join('\r\n') || '';
-}
-
-function encodeMimeSubject(value: string): string {
-  return `=?UTF-8?B?${encodeBase64Utf8(value)}?=`;
-}
-
-export function downloadMarketingEmailDraft(leads: Lead[], campaignId: string, repName: string): void {
-  const now = new Date();
-  const fileDate = now.toISOString().split('T')[0];
-  const displayDate = now.toLocaleDateString('en-GB');
-  const todaysLeads = leads.filter((lead) => new Date(lead.created_at).toDateString() === now.toDateString());
-  const excelFilename = getExcelFilename(campaignId, fileDate);
-  const emlFilename = `Lead_Scanner_Report_${fileDate}.eml`;
-  const boundary = `lead-scanner-${crypto.randomUUID()}`;
-  const subject = `Lead Scanner end-of-day report for campaign ${campaignId} - ${displayDate}`;
+export function openMarketingMailClient(leads: Lead[], campaignId: string, repName: string, recipient: string): void {
+  const today = new Date();
+  const displayDate = today.toLocaleDateString('en-GB');
+  const excelFilename = getExcelFilename(campaignId, today.toISOString().split('T')[0]);
+  const subject = `End-of-day report for campaign ${campaignId} - ${displayDate}`;
   const bodyText = `Hello,
 
 Please find the end-of-day report for contact forms collected at campaign ${campaignId}.
@@ -86,43 +67,15 @@ Summary:
 - Date: ${displayDate}
 - Campaign: ${campaignId}
 - Submitted by: ${repName}
-- Total leads: ${todaysLeads.length}
-- Newsletter opt-ins: ${todaysLeads.filter(l => l.newsletter_opt_in).length}
+- Total leads: ${leads.length}
+- Newsletter opt-ins: ${leads.filter(l => l.newsletter_opt_in).length}
+
+Please download and attach the Excel export (${excelFilename}) before sending.
 
 Kind regards,
 ${repName}
 `;
 
-  const workbookBase64 = XLSX.write(createLeadsWorkbook(todaysLeads, campaignId), {
-    bookType: 'xlsx',
-    type: 'base64'
-  });
-  const eml = [
-    'To: marketing_BNL@miltenyi.com',
-    `Subject: ${encodeMimeSubject(subject)}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    wrapBase64(encodeBase64Utf8(bodyText)),
-    `--${boundary}`,
-    `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="${excelFilename}"`,
-    'Content-Transfer-Encoding: base64',
-    `Content-Disposition: attachment; filename="${excelFilename}"`,
-    '',
-    wrapBase64(workbookBase64),
-    `--${boundary}--`,
-    ''
-  ].join('\r\n');
-  const url = URL.createObjectURL(new Blob([eml], { type: 'message/rfc822' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = emlFilename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+  window.location.href = mailtoUrl;
 }
