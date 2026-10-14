@@ -62,16 +62,15 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
     noteMatches.forEach((match, index) => {
       if (match.start < cursor) return;
       parts.push(
-        <span key={`plain-${cursor}-${index}`} style={{ color: 'transparent' }}>
+        <span key={`plain-${cursor}-${index}`}>
           {lead.notes.slice(cursor, match.start)}
         </span>
       );
-      const orangeStrength = Math.round(255 - match.confidence * 110);
       parts.push(
         <span
           key={`${match.start}-${index}`}
           title={`OCR confidence: ${Math.round(match.confidence * 100)}%${match.reason ? ` - ${match.reason}` : ''}`}
-          style={{ color: `rgb(234, ${orangeStrength}, 22)` }}
+          style={{ color: 'rgb(234, 178, 22)' }}
         >
           {match.word}
         </span>
@@ -80,7 +79,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
     });
 
     parts.push(
-      <span key={`plain-${cursor}-end`} style={{ color: 'transparent' }}>
+      <span key={`plain-${cursor}-end`}>
         {lead.notes.slice(cursor)}
       </span>
     );
@@ -263,7 +262,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 {noteMatches.length > 0 && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-px z-20 overflow-hidden rounded-lg px-3 py-2 text-sm leading-relaxed text-transparent"
+                    className="pointer-events-none absolute inset-px z-20 overflow-hidden rounded-lg px-3 py-2 font-sans text-sm leading-relaxed text-slate-900"
                   >
                     <div
                       className="whitespace-pre-wrap break-words"
@@ -279,7 +278,9 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                   value={lead.notes}
                   onChange={(e) => handleFieldChange('notes', e.target.value)}
                   onScroll={(e) => setNotesScrollTop(e.currentTarget.scrollTop)}
-                  className="relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm leading-relaxed text-slate-900 caret-slate-900 focus:ring-2 focus:ring-[#002B49]"
+                  className={`relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 font-sans text-sm leading-relaxed caret-slate-900 focus:ring-2 focus:ring-[#002B49] ${
+                    noteMatches.length > 0 ? 'text-transparent' : 'text-slate-900'
+                  }`}
                   placeholder="Describe cell types, assays, instruments, and specific reagents..."
                 />
               </div>
