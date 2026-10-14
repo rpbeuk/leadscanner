@@ -225,7 +225,6 @@ export function App() {
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
           }}
-          onDeleteLead={handleDeleteLead}
         />
       </main>
 
@@ -250,6 +249,10 @@ export function App() {
         <ReviewModal
           lead={activeReviewLead}
           onSave={handleSaveReviewedLead}
+          onDelete={(id) => {
+            void handleDeleteLead(id);
+            setActiveReviewLead(null);
+          }}
           onClose={() => setActiveReviewLead(null)}
         />
       )}
