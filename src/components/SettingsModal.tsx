@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Check, Database, RefreshCw, User, Tag } from 'lucide-react';
-import { saveRepName, saveCampaignId } from '../lib/storage';
+import { X, Database, RefreshCw, User, Tag } from 'lucide-react';
+import { DEFAULT_REP_NAME, saveRepName, saveCampaignId } from '../lib/storage';
 import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
@@ -27,21 +27,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [claudeKey, setClaudeKey] = useState(getSavedClaudeKey());
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
   const [accessCode, setAccessCode] = useState(getSavedAccessCode());
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [repNameError, setRepNameError] = useState<string | null>(null);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    saveRepName(repName);
+    const actualRepName = repName.trim();
+    if (!actualRepName || actualRepName.toLowerCase() === DEFAULT_REP_NAME.toLowerCase()) {
+      setRepNameError('Please enter the actual representative name before saving.');
+      return;
+    }
+
+    setRepNameError(null);
+    saveRepName(actualRepName);
     saveCampaignId(campaignId);
     saveClaudeKey(claudeKey);
     saveGeminiKey(geminiKey);
     saveAccessCode(accessCode);
-    onUpdate(repName, campaignId);
-    setSavedNotice(true);
-    setTimeout(() => {
-      setSavedNotice(false);
-      onClose();
-    }, 800);
+    onUpdate(actualRepName, campaignId);
+    onClose();
   };
 
   return (
@@ -51,7 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="bg-[#002B49] text-white px-4 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <User className="w-5 h-5 text-orange-400" />
-            <h2 className="font-bold text-base sm:text-lg">Settings & campaign setup</h2>
+            <h2 className="font-bold text-base sm:text-lg">Event settings</h2>
           </div>
           <button
             onClick={onClose}
@@ -71,11 +74,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </label>
             <input
               type="text"
-              required
               value={repName}
-              onChange={(e) => setRepName(e.target.value)}
+              aria-invalid={repNameError !== null}
+              aria-describedby={repNameError ? 'representative-name-error' : undefined}
+              onChange={(e) => {
+                setRepName(e.target.value);
+                setRepNameError(null);
+              }}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-semibold text-slate-900"
             />
+            {repNameError && (
+              <p id="representative-name-error" role="alert" className="mt-1 text-xs text-rose-700">
+                {repNameError}
+              </p>
+            )}
           </div>
 
           {/* Campaign ID */}
@@ -162,20 +174,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Footer Action */}
-          <div className="pt-2 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
-            >
-              Close
-            </button>
+          <div className="pt-2 flex items-center justify-end">
             <button
               type="submit"
               className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-md flex items-center gap-1.5 transition-colors"
             >
-              {savedNotice ? <Check className="w-4 h-4" /> : null}
-              <span>{savedNotice ? 'Saved!' : 'Save & apply'}</span>
+              <span>Save & apply</span>
             </button>
           </div>
         </form>
