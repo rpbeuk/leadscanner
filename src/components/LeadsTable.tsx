@@ -9,17 +9,15 @@ import {
   Building, 
   Trash2, 
   ChevronRight,
-  Upload,
-  ScanLine
+  Upload
 } from 'lucide-react';
-import { exportLeadsToExcel, openMarketingMailClient } from '../lib/excelExport';
+import { downloadMarketingEmailDraft, exportLeadsToExcel } from '../lib/excelExport';
 
 interface LeadsTableProps {
   leads: Lead[];
   activeCampaignId: string;
   repName: string;
   onDirectImageCaptured: (dataUrl: string) => void;
-  onOpenScanner: () => void;
   onSelectLead: (lead: Lead) => void;
   onDeleteLead: (id: string) => void;
 }
@@ -29,7 +27,6 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   activeCampaignId,
   repName,
   onDirectImageCaptured,
-  onOpenScanner,
   onSelectLead,
   onDeleteLead
 }) => {
@@ -92,9 +89,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
             <button
               type="button"
-              onClick={() => openMarketingMailClient(campaignLeads, activeCampaignId, repName)}
+              onClick={() => downloadMarketingEmailDraft(campaignLeads, activeCampaignId, repName)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Email the end-of-day report"
+              title="Download email draft with Excel attachment"
             >
               <Mail className="w-3.5 h-3.5 text-blue-900" />
               <span className="hidden sm:inline">Mail</span>
@@ -257,15 +254,6 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           <span>Scan form</span>
         </button>
 
-        {/* Live Viewfinder Modal */}
-        <button
-          type="button"
-          onClick={onOpenScanner}
-          className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
-          title="Open live viewfinder"
-        >
-          <ScanLine className="w-5 h-5 text-slate-600" />
-        </button>
       </div>
     </div>
   );

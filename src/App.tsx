@@ -15,7 +15,6 @@ import { processFormImage } from './lib/ocrEngine';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { LeadsTable } from './components/LeadsTable';
-import { ScannerModal } from './components/ScannerModal';
 import { ReviewModal } from './components/ReviewModal';
 import { SettingsModal } from './components/SettingsModal';
 
@@ -36,7 +35,6 @@ export function App() {
   const [isProcessingDirectScan, setIsProcessingDirectScan] = useState<boolean>(false);
 
   // Modals
-  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [activeReviewLead, setActiveReviewLead] = useState<Lead | null>(null);
 
@@ -126,20 +124,6 @@ export function App() {
     if (error) {
       console.error('Sign-out failed:', error);
       alert(`Could not sign out: ${error.message}`);
-    }
-  };
-
-  // Single scan captured
-  const handleSingleLeadCaptured = (newLead: Lead) => {
-    setIsScannerOpen(false);
-    setActiveReviewLead(newLead);
-  };
-
-  // Batch scan captured
-  const handleBatchCaptured = (batchLeads: Lead[]) => {
-    setIsScannerOpen(false);
-    if (batchLeads.length > 0) {
-      setActiveReviewLead(batchLeads[0]);
     }
   };
 
@@ -236,7 +220,6 @@ export function App() {
           activeCampaignId={campaignId}
           repName={repName}
           onDirectImageCaptured={handleDirectImageCaptured}
-          onOpenScanner={() => setIsScannerOpen(true)}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
           }}
@@ -258,17 +241,6 @@ export function App() {
             Transcribing handwriting, extracting 7 fields, and creating crops
           </p>
         </div>
-      )}
-
-      {/* Scanner View Modal */}
-      {isScannerOpen && (
-        <ScannerModal
-          campaignId={campaignId}
-          repName={repName}
-          onLeadCaptured={handleSingleLeadCaptured}
-          onBatchCaptured={handleBatchCaptured}
-          onClose={() => setIsScannerOpen(false)}
-        />
       )}
 
       {/* Review & Edit Modal */}
