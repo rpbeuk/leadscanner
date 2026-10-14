@@ -92,15 +92,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <input
               type="text"
               required
+              maxLength={20}
               value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value.toUpperCase())}
-              pattern="^U-\d{4,6}$"
-              title="Format: U- followed by 4 to 6 digits (e.g. U-10245)"
+              onChange={(e) => setCampaignId(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono font-bold text-slate-900"
-              placeholder="e.g. U-10245"
+              placeholder="U-00012345"
             />
             <p className="text-[11px] text-slate-500 mt-1">
-              Required format: <b>U-</b> followed by 4 to 6 digits (e.g. U-10245).
+              Any characters are allowed, up to 20 characters (e.g. <b>U-00012345</b>).
             </p>
           </div>
 

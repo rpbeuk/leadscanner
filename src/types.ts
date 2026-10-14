@@ -7,7 +7,7 @@ export interface ConfidenceFlag {
 
 export interface Lead {
   id: string;
-  campaign_id: string; // e.g. 'U-10245'
+  campaign_id: string; // e.g. 'U-00012345'
   collected_by: string; // Rep name
   
   // The official 7 form fields
