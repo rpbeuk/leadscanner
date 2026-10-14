@@ -35,10 +35,16 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const noteMatches = lead.confidence_flags
-    .filter((flag) => flag.field.toLowerCase() === 'notes' && flag.word.trim())
+    .filter((flag) => flag.word.trim())
     .flatMap((flag) => {
-      const escapedWord = flag.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+      const word = flag.word.trim();
+      const escapedWord = word.split(/\s+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
+      const startsWithWordCharacter = /^[\p{L}\p{N}_]/u.test(word);
+      const endsWithWordCharacter = /[\p{L}\p{N}_]$/u.test(word);
+      const pattern = new RegExp(
+        `${startsWithWordCharacter ? '(?<![\\p{L}\\p{N}_])' : ''}${escapedWord}${endsWithWordCharacter ? '(?![\\p{L}\\p{N}_])' : ''}`,
+        'giu'
+      );
       return Array.from(lead.notes.matchAll(pattern), (match) => ({
         start: match.index,
         end: match.index + match[0].length,
@@ -55,7 +61,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
 
     noteMatches.forEach((match, index) => {
       if (match.start < cursor) return;
-      parts.push(lead.notes.slice(cursor, match.start));
+      parts.push(
+        <span key={`plain-${cursor}-${index}`} style={{ color: 'transparent' }}>
+          {lead.notes.slice(cursor, match.start)}
+        </span>
+      );
       const orangeStrength = Math.round(255 - match.confidence * 110);
       parts.push(
         <span
@@ -69,7 +79,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
       cursor = match.end;
     });
 
-    parts.push(lead.notes.slice(cursor));
+    parts.push(
+      <span key={`plain-${cursor}-end`} style={{ color: 'transparent' }}>
+        {lead.notes.slice(cursor)}
+      </span>
+    );
     return parts;
   };
 
@@ -249,7 +263,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 {noteMatches.length > 0 && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-px z-0 overflow-hidden rounded-lg px-3 py-2 text-sm leading-relaxed"
+                    className="pointer-events-none absolute inset-px z-20 overflow-hidden rounded-lg px-3 py-2 text-sm leading-relaxed text-transparent"
                   >
                     <div
                       className="whitespace-pre-wrap break-words"
@@ -265,9 +279,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                   value={lead.notes}
                   onChange={(e) => handleFieldChange('notes', e.target.value)}
                   onScroll={(e) => setNotesScrollTop(e.currentTarget.scrollTop)}
-                  className={`relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:ring-[#002B49] ${
-                    noteMatches.length > 0 ? 'text-transparent caret-slate-900 selection:bg-orange-200/70' : ''
-                  }`}
+                  className="relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm leading-relaxed text-slate-900 caret-slate-900 focus:ring-2 focus:ring-[#002B49]"
                   placeholder="Describe cell types, assays, instruments, and specific reagents..."
                 />
               </div>
