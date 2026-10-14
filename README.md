@@ -1,6 +1,6 @@
 # Leadscanner
 
-Mobiele web-app om op een beurs papieren **contactformulieren** (Miltenyi Biotec "Contact form") te fotograferen,
+Mobiele web-app om op een beurs papieren **contactformulieren** te fotograferen,
 het **handschrift automatisch uit te laten lezen**, de lead te controleren en op te slaan/exporteren.
 
 - Live: https://rpbeuk.github.io/leadscanner/

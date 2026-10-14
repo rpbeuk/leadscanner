@@ -17,10 +17,10 @@ const CORS = {
 
 const FIELDS = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
 
-const PROMPT = `You receive a photo of a lead form in a fixed, standard layout (the "Miltenyi Biotec Contact Form"). Recognize the handwritten text and return it as JSON with these 7 fields: first_name, last_name, email, institute, department, notes, newsletter_opt_in.
+const PROMPT = `You receive a photo of a lead form in a fixed, standard layout (the contact form). Recognize the handwritten text and return it as JSON with these 7 fields: first_name, last_name, email, institute, department, notes, newsletter_opt_in.
 
 LAYOUT (top to bottom). Each printed label is followed, to its right, by the handwritten answer for THAT label only:
-1. Title "Contact form" with the Miltenyi Biotec logo (ignore; a small handwritten number in a top corner is a form number: ignore it).
+1. Title "Contact form" with a company logo (ignore; a small handwritten number in a top corner is a form number: ignore it).
 2. One row with two fields: "First Name*" (left) -> first_name, and "Last Name*" (right of it) -> last_name.
 3. "Email*" -> email.
 4. "University/Institution/Company" -> institute.

@@ -163,7 +163,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       {/* Top Bar */}
       <div className="px-5 py-4 flex items-center justify-between text-white z-10 bg-gradient-to-b from-black/80 to-transparent">
         <span className="text-sm font-semibold tracking-wide text-slate-200">
-          Miltenyi Contact Form Scanner
+          Contact Form Scanner
         </span>
         <button
           onClick={() => {
@@ -194,7 +194,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           <div className="absolute inset-8 sm:inset-16 border-2 border-dashed border-white/60 rounded-2xl pointer-events-none flex flex-col justify-between p-4">
             <div className="flex justify-between text-[11px] font-mono text-white/70">
               <span>┌ CONTACT</span>
-              <span>MILTENYI ┐</span>
+              <span>COMPANY ┐</span>
             </div>
             <div className="text-center text-xs font-medium text-white/80 bg-black/40 backdrop-blur-sm py-1.5 px-3 rounded-full mx-auto">
               Align the form within the frame

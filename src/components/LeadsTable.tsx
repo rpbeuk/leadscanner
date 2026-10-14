@@ -94,7 +94,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               type="button"
               onClick={() => openMarketingMailClient(campaignLeads, activeCampaignId, repName)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Email the end-of-day report to marketing_BNL@Miltenyi.com"
+              title="Email the end-of-day report"
             >
               <Mail className="w-3.5 h-3.5 text-blue-900" />
               <span className="hidden sm:inline">Mail</span>
@@ -145,7 +145,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-800 mb-1">No forms in the database</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mb-6">
-              Take a photo of a completed Miltenyi contact form to capture its details.
+              Take a photo of a completed contact form to capture its details.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <button
