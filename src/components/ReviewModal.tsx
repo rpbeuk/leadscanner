@@ -30,8 +30,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   totalCount
 }) => {
   const [lead, setLead] = useState<Lead>({ ...initialLead });
-  const [activeField, setActiveField] = useState<keyof Lead>('notes');
-  const [showFullImage, setShowFullImage] = useState<boolean>(false);
+  const [showOriginalPhoto, setShowOriginalPhoto] = useState(false);
 
   const handleFieldChange = (field: keyof Lead, value: any) => {
     const updated = { ...lead, [field]: value };
@@ -62,9 +61,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
       updated_at: new Date().toISOString()
     });
   };
-
-  // Get current active field crop
-  const currentCrop = lead.field_crops?.[activeField as keyof typeof lead.field_crops];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto max-w-full overflow-x-hidden">
@@ -119,46 +115,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             </div>
           )}
 
-          {/* Context Crop Preview Widget */}
-          <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 shadow-inner">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                <Eye className="w-4 h-4 text-orange-600" />
-                <span>Original handwriting crop (field: {activeField})</span>
-              </div>
-              {lead.image_url && (
-                <button
-                  type="button"
-                  onClick={() => setShowFullImage(!showFullImage)}
-                  className="text-[11px] text-blue-600 hover:underline font-medium"
-                >
-                  {showFullImage ? 'Show crop only' : 'View full form'}
-                </button>
-              )}
-            </div>
-
-            {showFullImage && lead.image_url ? (
-              <div className="max-h-60 overflow-auto rounded-lg border border-slate-300 bg-white p-1">
-                <img src={lead.image_url} alt="Full form" className="w-full object-contain" />
-              </div>
-            ) : currentCrop ? (
-              <div className="rounded-lg border border-slate-300 bg-white p-2 flex flex-col items-center justify-center">
-                <img
-                  src={currentCrop}
-                  alt="Field crop"
-                  className="max-h-36 max-w-full object-contain rounded"
-                />
-                <p className="text-[11px] text-slate-500 mt-1 italic">
-                  💡 Tip: Nearby text can help interpret abbreviations.
-                </p>
-              </div>
-            ) : (
-              <div className="py-4 text-center text-xs text-slate-400 bg-white rounded-lg border border-dashed border-slate-200">
-                No crop is available for this field. Select another field below.
-              </div>
-            )}
-          </div>
-
           {/* The 7 Standard Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* First Name */}
@@ -169,7 +125,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <input
                 type="text"
                 value={lead.first_name}
-                onFocus={() => setActiveField('first_name')}
                 onChange={(e) => handleFieldChange('first_name', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] focus:border-transparent text-sm font-medium"
                 placeholder="e.g. Sophie"
@@ -184,7 +139,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <input
                 type="text"
                 value={lead.last_name}
-                onFocus={() => setActiveField('last_name')}
                 onChange={(e) => handleFieldChange('last_name', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] focus:border-transparent text-sm font-medium"
                 placeholder="e.g. van den Berg"
@@ -203,7 +157,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 <input
                   type="email"
                   value={lead.email}
-                  onFocus={() => setActiveField('email')}
                   onChange={(e) => handleFieldChange('email', e.target.value)}
                   className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm font-medium focus:ring-2 focus:ring-[#002B49] ${
                     lead.email_warning
@@ -224,7 +177,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <input
                 type="text"
                 value={lead.institute}
-                onFocus={() => setActiveField('institute')}
                 onChange={(e) => handleFieldChange('institute', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-medium"
                 placeholder="e.g. NKI - Antoni van Leeuwenhoek"
@@ -239,7 +191,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <input
                 type="text"
                 value={lead.department}
-                onFocus={() => setActiveField('department')}
                 onChange={(e) => handleFieldChange('department', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-medium"
                 placeholder="e.g. Division of Immunology"
@@ -280,7 +231,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <textarea
                 rows={4}
                 value={lead.notes}
-                onFocus={() => setActiveField('notes')}
                 onChange={(e) => handleFieldChange('notes', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm leading-relaxed"
                 placeholder="Describe cell types, assays, instruments, and specific reagents..."
@@ -316,24 +266,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                   className="mt-0.5 w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
                 />
                 <span className="text-xs text-slate-700 leading-snug">
-                  <b>Newsletter opt-in:</b> Yes, I want to receive scientific news, product promotions, and information about upcoming events.
+                  <b>Newsletter opt-in</b>
                 </span>
               </label>
             </div>
 
-            {/* Sales Rep (Collected By) Override */}
-            <div className="sm:col-span-2 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <span>Lead collected by:</span>
-                <input
-                  type="text"
-                  value={lead.collected_by}
-                  onChange={(e) => handleFieldChange('collected_by', e.target.value)}
-                  className="px-2 py-0.5 rounded border border-slate-300 text-xs font-semibold text-slate-800 bg-white"
-                />
-              </div>
-              <span className="text-slate-400">Status: {lead.status === 'reviewed' ? 'Reviewed' : lead.status === 'synced' ? 'Synced' : 'Draft'}</span>
-            </div>
           </div>
         </div>
 
@@ -361,6 +298,16 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {lead.image_url && (
+              <button
+                type="button"
+                onClick={() => setShowOriginalPhoto(true)}
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+              >
+                <Eye className="w-4 h-4" />
+                View original photo
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -383,6 +330,35 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
           </div>
         </div>
       </div>
+      {showOriginalPhoto && lead.image_url && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Original contact form photo"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/90 p-3 sm:p-6"
+        >
+          <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-800">Original contact form</h3>
+              <button
+                type="button"
+                onClick={() => setShowOriginalPhoto(false)}
+                aria-label="Close original photo"
+                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-auto bg-slate-100 p-2 sm:p-4">
+              <img
+                src={lead.image_url}
+                alt="Full scanned contact form"
+                className="mx-auto h-auto max-h-[calc(95vh-5rem)] max-w-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
