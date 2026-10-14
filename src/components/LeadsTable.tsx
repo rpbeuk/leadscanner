@@ -174,7 +174,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 lead.processing
                   ? 'bg-slate-50'
                   : lead.status === 'reviewed'
-                  ? 'bg-orange-200/80 hover:bg-orange-200 active:bg-orange-300/70'
+                  ? 'bg-emerald-100/70 hover:bg-emerald-100 active:bg-emerald-200/70'
                   : 'hover:bg-slate-50/80 active:bg-blue-50/50'
               } transition-colors ${lead.processing ? 'cursor-wait' : 'cursor-pointer'} flex items-center justify-between gap-3 group`}
             >
@@ -182,13 +182,14 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 {/* Name & Indicators */}
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900 text-sm group-hover:text-blue-900 truncate">
-                    {lead.processing ? '???' : lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Unnamed form'}
+                    {lead.processing
+                      ? `Analyzing form ${lead.processing_number}`
+                      : lead.first_name || lead.last_name
+                        ? `${lead.first_name} ${lead.last_name}`
+                        : 'Unnamed form'}
                   </span>
                   {lead.processing && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Analyzing form...
-                    </span>
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-500" aria-label="Form analysis in progress" />
                   )}
                   {lead.email_warning && (
                     <span title="Check email address" className="shrink-0">
@@ -203,9 +204,11 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 </div>
 
                 {/* Email */}
-                <p className="text-xs text-slate-500 font-mono truncate mt-0.5">
-                  {lead.processing ? '???' : lead.email || 'No email'}
-                </p>
+                {!lead.processing && (
+                  <p className="text-xs text-slate-500 font-mono truncate mt-0.5">
+                    {lead.email || 'No email'}
+                  </p>
+                )}
 
                 {/* Institute & Department */}
                 {(lead.institute || lead.department) && (

@@ -35,6 +35,7 @@ export function App() {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const processingLeads = useRef(new Map<string, Lead>());
+  const nextProcessingNumber = useRef(1);
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -135,11 +136,15 @@ export function App() {
   // Direct camera / gallery captured from table
   const handleDirectImageCaptured = async (dataUrl: string) => {
     const now = new Date().toISOString();
+    if (processingLeads.current.size === 0) {
+      nextProcessingNumber.current = 1;
+    }
+    const processingNumber = nextProcessingNumber.current++;
     const placeholder: Lead = {
       id: crypto.randomUUID(),
       campaign_id: campaignId,
       collected_by: repName,
-      first_name: '???',
+      first_name: '',
       last_name: '',
       email: '',
       institute: '',
@@ -152,6 +157,7 @@ export function App() {
       status: 'draft',
       synced_to_cloud: false,
       processing: true,
+      processing_number: processingNumber,
       created_at: now,
       updated_at: now
     };
