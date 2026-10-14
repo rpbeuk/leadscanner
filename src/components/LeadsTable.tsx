@@ -37,35 +37,68 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFastScanActive, setIsFastScanActive] = useState(false);
-  const [isFastCapturePending, setIsFastCapturePending] = useState(false);
+  const [isFastCameraStarting, setIsFastCameraStarting] = useState(false);
   const [fastScanCount, setFastScanCount] = useState(0);
+  const [fastCameraError, setFastCameraError] = useState<string | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const fastVideoRef = useRef<HTMLVideoElement>(null);
+  const fastCameraStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (!isFastScanActive || isFastCapturePending) return;
+    if (!isFastScanActive || isFastCameraStarting) return;
     const timeout = window.setTimeout(() => {
       setIsFastScanActive(false);
     }, 10000);
     return () => window.clearTimeout(timeout);
-  }, [isFastScanActive, isFastCapturePending, fastScanCount]);
+  }, [isFastScanActive, isFastCameraStarting, fastScanCount]);
 
   useEffect(() => {
-    const cameraInput = cameraInputRef.current;
-    if (!cameraInput) return;
-    const handleCancel = () => setIsFastCapturePending(false);
-    cameraInput.addEventListener('cancel', handleCancel);
-    return () => cameraInput.removeEventListener('cancel', handleCancel);
-  }, []);
+    if (!isFastScanActive) return;
+
+    let cancelled = false;
+    setIsFastCameraStarting(true);
+    setFastCameraError(null);
+
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.getUserMedia) {
+      setFastCameraError('Live camera scanning is not supported by this browser. Use Scan form instead.');
+      setIsFastCameraStarting(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' } }
+    }).then((stream) => {
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      fastCameraStreamRef.current = stream;
+      if (fastVideoRef.current) fastVideoRef.current.srcObject = stream;
+      setIsFastCameraStarting(false);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      console.error('Unable to start the fast scanner camera:', error);
+      setFastCameraError('Camera access failed. Check your browser permissions, then close and reopen the fast scanner.');
+      setIsFastCameraStarting(false);
+    });
+
+    return () => {
+      cancelled = true;
+      fastCameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      fastCameraStreamRef.current = null;
+    };
+  }, [isFastScanActive]);
 
   const openCaptureInput = (inputRef: React.RefObject<HTMLInputElement | null>) => {
     if (!isActualRepName(repName)) {
       setIsFastScanActive(false);
       onRequireRepName();
       return;
-    }
-    if (isFastScanActive && inputRef === cameraInputRef) {
-      setIsFastCapturePending(true);
     }
     inputRef.current?.click();
   };
@@ -81,20 +114,12 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) {
-      if (isFastScanActive) setIsFastCapturePending(false);
-      return;
-    }
+    if (!files || files.length === 0) return;
     if (!isActualRepName(repName)) {
       e.target.value = '';
-      setIsFastCapturePending(false);
       setIsFastScanActive(false);
       onRequireRepName();
       return;
-    }
-    if (isFastScanActive && e.currentTarget === cameraInputRef.current) {
-      setFastScanCount((count) => count + 1);
-      setIsFastCapturePending(false);
     }
     const file = files[0];
     const reader = new FileReader();
@@ -105,10 +130,32 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     };
     reader.onerror = () => {
       console.error('Failed to read the selected form image:', reader.error);
-      setIsFastCapturePending(false);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const captureFastScanImage = () => {
+    const video = fastVideoRef.current;
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+    if (!isActualRepName(repName)) {
+      setIsFastScanActive(false);
+      onRequireRepName();
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context || canvas.width === 0 || canvas.height === 0) {
+      setFastCameraError('The camera image is not ready yet. Please try again.');
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    onDirectImageCaptured(canvas.toDataURL('image/jpeg', 0.92));
+    setFastScanCount((count) => count + 1);
+    setFastCameraError(null);
   };
 
   // Filter leads for this campaign and search term
@@ -359,29 +406,57 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             </div>
             <h2 id="fast-scan-title" className="text-lg font-bold">Capture forms one after another</h2>
             <p className="mt-2 text-sm text-slate-300">
-              Each photo is added to the lead list and analyzed in the background. The scanner returns to the overview after 10 seconds without activity.
+              The scanner returns to the overview after 10 seconds without activity.
             </p>
+            <div className="mt-4 overflow-hidden rounded-xl bg-black">
+              <video
+                ref={fastVideoRef}
+                autoPlay
+                muted
+                playsInline
+                onLoadedMetadata={(event) => {
+                  void event.currentTarget.play().catch((error: unknown) => {
+                    console.error('Unable to play the fast scanner camera preview:', error);
+                    setFastCameraError('The camera preview could not start. Close and reopen the fast scanner.');
+                  });
+                }}
+                className="aspect-[3/4] w-full object-cover"
+                aria-label="Live camera preview"
+              />
+            </div>
+            {isFastCameraStarting && (
+              <p className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Starting camera...
+              </p>
+            )}
+            {fastCameraError && (
+              <p role="alert" className="mt-3 text-sm text-red-300">{fastCameraError}</p>
+            )}
             <p className="mt-3 text-xs font-semibold text-slate-400">
               Photos captured: {fastScanCount}
             </p>
             <button
               type="button"
-              onClick={() => openCaptureInput(cameraInputRef)}
-              disabled={isFastCapturePending}
+              onClick={captureFastScanImage}
+              disabled={isFastCameraStarting || Boolean(fastCameraError)}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
             >
-              {isFastCapturePending ? (
+              {isFastCameraStarting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Waiting for camera...
+                  Starting camera...
                 </>
               ) : (
                 <>
                   <Camera className="h-5 w-5" />
-                  Take photo
+                  Capture lead photo
                 </>
               )}
             </button>
+            <p className="mt-2 text-xs text-slate-300">
+              Keep the camera open and capture one photo for each lead. Photos are analyzed in the background.
+            </p>
           </div>
         </div>
       )}
