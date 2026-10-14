@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { ConfidenceFlag, Lead } from '../types';
 import { AlertTriangle, Check, X, Mail, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
@@ -136,6 +136,13 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const noteMatches = findConfidenceMatches(lead.notes, lead.confidence_flags);
+
+  useLayoutEffect(() => {
+    const textarea = notesTextareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [lead.notes]);
 
   const renderNotesWithConfidence = () => {
     return renderConfidenceText(lead.notes, noteMatches);
@@ -333,11 +340,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 )}
                 <textarea
                   ref={notesTextareaRef}
-                  rows={8}
+                  rows={1}
                   value={lead.notes}
                   onChange={(e) => handleFieldChange('notes', e.target.value)}
                   onScroll={(e) => setNotesScrollTop(e.currentTarget.scrollTop)}
-                  className={`relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 font-sans text-sm leading-relaxed caret-slate-900 focus:ring-2 focus:ring-[#002B49] ${
+                  className={`relative z-10 w-full resize-none overflow-hidden rounded-lg border border-slate-300 bg-transparent px-3 py-2 font-sans text-sm leading-relaxed caret-slate-900 focus:ring-2 focus:ring-[#002B49] ${
                     noteMatches.length > 0 ? 'text-transparent' : 'text-slate-900'
                   }`}
                   placeholder="Describe cell types, assays, instruments, and specific reagents..."
