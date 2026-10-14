@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { X, Database, RefreshCw, User, Tag } from 'lucide-react';
-import { DEFAULT_REP_NAME, saveRepName, saveCampaignId } from '../lib/storage';
+import { DEFAULT_REP_NAME, saveRepName, saveCampaignId, saveEventEmail } from '../lib/storage';
 import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
   currentCampaignId: string;
-  onUpdate: (repName: string, campaignId: string) => void;
+  currentEventEmail: string;
+  onUpdate: (repName: string, campaignId: string, eventEmail: string) => void;
   onClose: () => void;
   isOnline: boolean;
   onTriggerSync: () => void;
@@ -16,6 +17,7 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentRepName,
   currentCampaignId,
+  currentEventEmail,
   onUpdate,
   onClose,
   isOnline,
@@ -24,6 +26,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [repName, setRepName] = useState(currentRepName);
   const [campaignId, setCampaignId] = useState(currentCampaignId);
+  const [eventEmail, setEventEmail] = useState(currentEventEmail);
   const [claudeKey, setClaudeKey] = useState(getSavedClaudeKey());
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
   const [accessCode, setAccessCode] = useState(getSavedAccessCode());
@@ -32,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const actualRepName = repName.trim();
+    const actualEventEmail = eventEmail.trim();
     if (!actualRepName || actualRepName.toLowerCase() === DEFAULT_REP_NAME.toLowerCase()) {
       setRepNameError('Please enter the actual representative name before saving.');
       return;
@@ -40,10 +44,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setRepNameError(null);
     saveRepName(actualRepName);
     saveCampaignId(campaignId);
+    saveEventEmail(actualEventEmail);
     saveClaudeKey(claudeKey);
     saveGeminiKey(geminiKey);
     saveAccessCode(accessCode);
-    onUpdate(actualRepName, campaignId);
+    onUpdate(actualRepName, campaignId, actualEventEmail);
     onClose();
   };
 
@@ -104,6 +109,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={(e) => setCampaignId(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono font-bold text-slate-900"
               placeholder="U-00012345"
+            />
+          </div>
+
+          {/* Event closing email recipient */}
+          <div>
+            <label htmlFor="event-email" className="mb-1 block text-xs font-semibold text-slate-700">
+              When closing an event, email to:
+            </label>
+            <input
+              id="event-email"
+              type="email"
+              required
+              value={eventEmail}
+              onChange={(e) => setEventEmail(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-transparent focus:ring-2 focus:ring-[#002B49]"
             />
           </div>
 
