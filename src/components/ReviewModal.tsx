@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import type { ConfidenceFlag, Lead } from '../types';
-import { AlertTriangle, Check, X, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, X, Mail, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
 import { matchCrmAccount } from '../lib/crmAccounts';
 
@@ -344,24 +344,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 />
               </div>
 
-              {/* Confidence Flags Chips */}
-              {lead.confidence_flags && lead.confidence_flags.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    OCR uncertainties:
-                  </span>
-                  {lead.confidence_flags.map((flag, i) => (
-                    <span
-                      key={i}
-                      title={`Confidence: ${Math.round(flag.confidence * 100)}% - ${flag.reason || 'Possibly unclear'}`}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300"
-                    >
-                      {flag.word} ({Math.round(flag.confidence * 100)}%)
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Newsletter Opt-in Checkbox */}

@@ -1,15 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { Lead } from '../types';
 import { 
   FileSpreadsheet, 
   Mail, 
   Camera, 
+  Camera as CameraStack,
   Loader2,
   Search, 
   AlertTriangle, 
   Building, 
   ChevronRight,
-  Upload
+  Upload,
+  X
 } from 'lucide-react';
 import { openMarketingMailClient, exportLeadsToExcel } from '../lib/excelExport';
 import { isActualRepName } from '../lib/storage';
@@ -34,24 +36,65 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   onSelectLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFastScanActive, setIsFastScanActive] = useState(false);
+  const [isFastCapturePending, setIsFastCapturePending] = useState(false);
+  const [fastScanCount, setFastScanCount] = useState(0);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!isFastScanActive || isFastCapturePending) return;
+    const timeout = window.setTimeout(() => {
+      setIsFastScanActive(false);
+    }, 10000);
+    return () => window.clearTimeout(timeout);
+  }, [isFastScanActive, isFastCapturePending, fastScanCount]);
+
+  useEffect(() => {
+    const cameraInput = cameraInputRef.current;
+    if (!cameraInput) return;
+    const handleCancel = () => setIsFastCapturePending(false);
+    cameraInput.addEventListener('cancel', handleCancel);
+    return () => cameraInput.removeEventListener('cancel', handleCancel);
+  }, []);
+
   const openCaptureInput = (inputRef: React.RefObject<HTMLInputElement | null>) => {
     if (!isActualRepName(repName)) {
+      setIsFastScanActive(false);
       onRequireRepName();
       return;
+    }
+    if (isFastScanActive && inputRef === cameraInputRef) {
+      setIsFastCapturePending(true);
     }
     inputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const startFastScan = () => {
     if (!isActualRepName(repName)) {
-      e.target.value = '';
       onRequireRepName();
       return;
+    }
+    setFastScanCount(0);
+    setIsFastScanActive(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      if (isFastScanActive) setIsFastCapturePending(false);
+      return;
+    }
+    if (!isActualRepName(repName)) {
+      e.target.value = '';
+      setIsFastCapturePending(false);
+      setIsFastScanActive(false);
+      onRequireRepName();
+      return;
+    }
+    if (isFastScanActive && e.currentTarget === cameraInputRef.current) {
+      setFastScanCount((count) => count + 1);
+      setIsFastCapturePending(false);
     }
     const file = files[0];
     const reader = new FileReader();
@@ -59,6 +102,10 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       if (event.target?.result) {
         onDirectImageCaptured(event.target.result as string);
       }
+    };
+    reader.onerror = () => {
+      console.error('Failed to read the selected form image:', reader.error);
+      setIsFastCapturePending(false);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -274,7 +321,70 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           <span>Scan form</span>
         </button>
 
+        {/* Multi-form quick capture */}
+        <button
+          type="button"
+          onClick={startFastScan}
+          className="pointer-events-auto relative h-14 w-14 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all flex items-center justify-center"
+          title="Start fast multi-form scanning"
+          aria-label="Start fast multi-form scanning"
+        >
+          <Camera className="absolute h-5 w-5 -translate-x-1.5 -translate-y-1.5 text-slate-400" />
+          <CameraStack className="relative h-5 w-5 translate-x-1.5 translate-y-1.5 text-orange-600" />
+        </button>
+
       </div>
+
+      {isFastScanActive && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fast-scan-title"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4 text-white backdrop-blur-sm"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-900 p-5 text-center shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-200">Fast lead scanner</span>
+              <button
+                type="button"
+                onClick={() => setIsFastScanActive(false)}
+                aria-label="Close fast scanner"
+                className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-400">
+              <CameraStack className="h-9 w-9" />
+            </div>
+            <h2 id="fast-scan-title" className="text-lg font-bold">Capture forms one after another</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Each photo is added to the lead list and analyzed in the background. The scanner returns to the overview after 10 seconds without activity.
+            </p>
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              Photos captured: {fastScanCount}
+            </p>
+            <button
+              type="button"
+              onClick={() => openCaptureInput(cameraInputRef)}
+              disabled={isFastCapturePending}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-wait disabled:opacity-70"
+            >
+              {isFastCapturePending ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Waiting for camera...
+                </>
+              ) : (
+                <>
+                  <Camera className="h-5 w-5" />
+                  Take photo
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
