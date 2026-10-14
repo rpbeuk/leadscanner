@@ -169,7 +169,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               onClick={() => onSelectLead(lead)}
               className={`p-3.5 sm:p-4 ${
                 lead.status === 'reviewed'
-                  ? 'bg-orange-100/70 hover:bg-orange-100 active:bg-orange-200/70'
+                  ? 'bg-orange-200/80 hover:bg-orange-200 active:bg-orange-300/70'
                   : 'hover:bg-slate-50/80 active:bg-blue-50/50'
               } transition-colors cursor-pointer flex items-center justify-between gap-3 group`}
             >
