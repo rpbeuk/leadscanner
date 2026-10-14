@@ -173,7 +173,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto max-w-full overflow-x-hidden">
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[95vh] min-w-0">
+      <div className="relative my-auto flex h-[95dvh] max-h-[95vh] w-full min-w-0 max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Header Bar */}
         <div className="bg-[#002B49] text-white px-3 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between border-b border-blue-950 gap-2 min-w-0">
           <div className="flex items-center gap-3">
@@ -365,7 +365,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 z-20 shrink-0 bg-slate-50 px-3 sm:px-5 py-3.5 border-t border-slate-200 flex items-center justify-between gap-2">
+        <div className="relative z-20 flex-none bg-slate-50 px-3 sm:px-5 py-3.5 border-t border-slate-200 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {hasPrev && (
               <button
