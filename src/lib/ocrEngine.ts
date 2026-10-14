@@ -134,8 +134,9 @@ Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed lab
 (e.g. "First Name", "Email", "University/Institution/Company", "Department", "How can we support you with your research?").
 Do NOT paraphrase, correct or invent. Preserve abbreviations (MACS, CAR-T, PBMC, REAfinity, ...) and line breaks in the notes.
 If a field is empty or unreadable, return an empty string.
+Capture all other legible handwriting that does not clearly belong to one of the named fields in notes, including writing below or outside the notes rectangle and in the form margins. Append it after the notes text in reading order, preserving the original wording and line breaks. Do not duplicate handwriting already assigned to another field or include printed text.
 Emails: no spaces, lowercase. Newsletter: true only if the checkbox is clearly ticked.
-For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo.
+For every field also return in "boxes" the tight bounding box of the HANDWRITTEN answer only (not the printed label), as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the photo. For notes, include any extra handwriting assigned to notes.
 In confidence_flags list individual words you are unsure about (confidence 0-1).`;
 
 const GEMINI_SCHEMA = {

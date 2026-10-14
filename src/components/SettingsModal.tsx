@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Database, RefreshCw, User, Tag } from 'lucide-react';
-import { DEFAULT_REP_NAME, saveRepName, saveCampaignId, saveEventEmail } from '../lib/storage';
+import { isActualRepName, saveRepName, saveCampaignId, saveEventEmail } from '../lib/storage';
 import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
   currentCampaignId: string;
   currentEventEmail: string;
+  guideRepresentativeName?: boolean;
   onUpdate: (repName: string, campaignId: string, eventEmail: string) => void;
   onClose: () => void;
   isOnline: boolean;
@@ -18,6 +19,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentRepName,
   currentCampaignId,
   currentEventEmail,
+  guideRepresentativeName = false,
   onUpdate,
   onClose,
   isOnline,
@@ -31,12 +33,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
   const [accessCode, setAccessCode] = useState(getSavedAccessCode());
   const [repNameError, setRepNameError] = useState<string | null>(null);
+  const representativeNameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (guideRepresentativeName) {
+      representativeNameInputRef.current?.focus();
+    }
+  }, [guideRepresentativeName]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const actualRepName = repName.trim();
     const actualEventEmail = eventEmail.trim();
-    if (!actualRepName || actualRepName.toLowerCase() === DEFAULT_REP_NAME.toLowerCase()) {
+    if (!isActualRepName(actualRepName)) {
       setRepNameError('Please enter the actual representative name before saving.');
       return;
     }
@@ -73,11 +82,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <form onSubmit={handleSave} className="p-6 space-y-5">
           {/* Rep Name */}
           <div>
+            {guideRepresentativeName && (
+              <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                Please enter your actual name here before scanning a form.
+              </p>
+            )}
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <User className="w-4 h-4 text-blue-900" />
               <span>Representative name</span>
             </label>
             <input
+              ref={representativeNameInputRef}
               type="text"
               value={repName}
               aria-invalid={repNameError !== null}
@@ -86,7 +101,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 setRepName(e.target.value);
                 setRepNameError(null);
               }}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-semibold text-slate-900"
+              className={`w-full px-3.5 py-2.5 rounded-xl border focus:ring-2 focus:ring-[#002B49] text-sm font-semibold text-slate-900 ${
+                guideRepresentativeName ? 'border-amber-400 ring-2 ring-amber-200' : 'border-slate-300'
+              }`}
             />
             {repNameError && (
               <p id="representative-name-error" role="alert" className="mt-1 text-xs text-rose-700">

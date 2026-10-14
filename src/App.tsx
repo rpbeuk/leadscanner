@@ -39,6 +39,7 @@ export function App() {
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [guideRepresentativeName, setGuideRepresentativeName] = useState(false);
   const [activeReviewLead, setActiveReviewLead] = useState<Lead | null>(null);
 
   useEffect(() => {
@@ -283,6 +284,10 @@ export function App() {
           activeCampaignId={campaignId}
           repName={repName}
           eventEmail={eventEmail}
+          onRequireRepName={() => {
+            setGuideRepresentativeName(true);
+            setIsSettingsOpen(true);
+          }}
           onDirectImageCaptured={handleDirectImageCaptured}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
@@ -309,13 +314,17 @@ export function App() {
           currentRepName={repName}
           currentCampaignId={campaignId}
           currentEventEmail={eventEmail}
+          guideRepresentativeName={guideRepresentativeName}
           onUpdate={(newRep, newCamp, newEmail) => {
             setRepName(newRep);
             setCampaignId(newCamp);
             setEventEmail(newEmail);
             loadLeads();
           }}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={() => {
+            setIsSettingsOpen(false);
+            setGuideRepresentativeName(false);
+          }}
           isOnline={isOnline}
           onTriggerSync={handleManualSync}
           isSyncing={isSyncing}

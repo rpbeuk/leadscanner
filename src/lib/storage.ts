@@ -12,6 +12,11 @@ const KEY_EVENT_EMAIL = 'leadscanner_event_email';
 export const DEFAULT_REP_NAME = 'Max Mustermann';
 export const DEFAULT_EVENT_EMAIL = 'marketing_BNL@miltenyi.com';
 
+export function isActualRepName(name: string): boolean {
+  const normalizedName = name.trim();
+  return normalizedName.length > 0 && normalizedName.toLowerCase() !== DEFAULT_REP_NAME.toLowerCase();
+}
+
 export function getSavedRepName(): string {
   return localStorage.getItem(KEY_REP) || DEFAULT_REP_NAME;
 }
