@@ -18,7 +18,7 @@ export function saveRepName(name: string): void {
 }
 
 export function getSavedCampaignId(): string {
-  return localStorage.getItem(KEY_CAMPAIGN) || 'U-10245';
+  return localStorage.getItem(KEY_CAMPAIGN) || 'U-00012345';
 }
 
 export function saveCampaignId(id: string): void {
