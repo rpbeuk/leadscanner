@@ -7,15 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        miltenyi: {
+        brand: {
           blue: {
-            DEFAULT: '#002B49', // Official Miltenyi deep navy blue
+            DEFAULT: '#002B49',
             light: '#005587',
             dark: '#001829',
             surface: '#F0F5F9'
           },
           orange: {
-            DEFAULT: '#EB690B', // Official Miltenyi vibrant orange
+            DEFAULT: '#EB690B',
             light: '#F28522',
             dark: '#C85300'
           }

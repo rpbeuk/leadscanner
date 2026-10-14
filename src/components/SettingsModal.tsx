@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Database, RefreshCw, User, Tag, ShieldCheck } from 'lucide-react';
-import { supabaseUrl } from '../lib/supabase';
+import { X, Check, Database, RefreshCw, User, Tag } from 'lucide-react';
 import { saveRepName, saveCampaignId } from '../lib/storage';
 import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
 
@@ -76,11 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               value={repName}
               onChange={(e) => setRepName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-semibold text-slate-900"
-              placeholder="e.g. Aron Overgaauw or Ruben Miltenyi"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Saved on this device and can be changed for each lead.
-            </p>
           </div>
 
           {/* Campaign ID */}
@@ -98,9 +93,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono font-bold text-slate-900"
               placeholder="U-00012345"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Any characters are allowed, up to 20 characters (e.g. <b>U-00012345</b>).
-            </p>
           </div>
 
           {/* OCR API keys */}
@@ -116,7 +108,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-base font-mono text-slate-900"
-                placeholder="e.g. apple-flower-4821"
               />
             </div>
             {ENGINES.claude && (
@@ -128,7 +119,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={claudeKey}
                 onChange={(e) => setClaudeKey(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
-                placeholder="sk-ant-..."
               />
             </div>
             )}
@@ -141,13 +131,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm font-mono text-slate-900"
-                placeholder="AIza... of AQ...."
               />
             </div>
             )}
-            <p className="text-[11px] text-slate-500">
-              The access code is stored only on this device. Form recognition runs through Azure.
-            </p>
           </div>
 
           {/* Cloud Status Card */}
@@ -162,11 +148,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {isOnline ? 'Connected' : 'Offline'}
               </span>
             </div>
-            <p className="text-slate-500 text-[11px] break-all">
-              Host: <span className="font-mono text-slate-700">{new URL(supabaseUrl).host}</span>
-            </p>
-            <div className="pt-2 flex items-center justify-between border-t border-slate-200">
-              <span className="text-slate-600">Manual cloud sync:</span>
+            <div className="flex items-center justify-end border-t border-slate-200 pt-2">
               <button
                 type="button"
                 onClick={onTriggerSync}
@@ -177,11 +159,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>{isSyncing ? 'Syncing...' : 'Sync now'}</span>
               </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 text-[11px] text-blue-900">
-            <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0" />
-            <span>Scans are saved locally first, then securely sent to Supabase.</span>
           </div>
 
           {/* Footer Action */}

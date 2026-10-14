@@ -39,22 +39,21 @@ export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Miltenyi Leads');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const filename = `Miltenyi_Leads_${campaignId}_${todayStr}.xlsx`;
+  const filename = `Leads_${campaignId}_${todayStr}.xlsx`;
 
   XLSX.writeFile(workbook, filename);
 }
 
 export function openMarketingMailClient(leads: Lead[], campaignId: string, repName: string): void {
-  const recipient = 'marketing_BNL@Miltenyi.com';
   const fileDate = new Date().toISOString().split('T')[0];
   const displayDate = new Date().toLocaleDateString('en-GB');
-  const filename = `Miltenyi_Leads_${campaignId}_${fileDate}.xlsx`;
-  const subject = encodeURIComponent(`[Miltenyi Leads] End-of-day report for campaign ${campaignId} - ${displayDate}`);
+  const filename = `Leads_${campaignId}_${fileDate}.xlsx`;
+  const subject = encodeURIComponent(`Lead Scanner end-of-day report for campaign ${campaignId} - ${displayDate}`);
   
-  const bodyText = `Dear Marketing Team,
+  const bodyText = `Hello,
 
 Please find the end-of-day report for contact forms collected at campaign ${campaignId}.
 
@@ -69,9 +68,8 @@ The corresponding Excel file (${filename}) has just been downloaded and can be a
 
 Kind regards,
 ${repName}
-Miltenyi Biotec B.V.
 `;
 
-  const mailtoUrl = `mailto:${recipient}?subject=${subject}&body=${encodeURIComponent(bodyText)}`;
+  const mailtoUrl = `mailto:?subject=${subject}&body=${encodeURIComponent(bodyText)}`;
   window.open(mailtoUrl, '_blank');
 }

@@ -128,7 +128,7 @@ async function generateFieldCrops(
   });
 }
 
-const GEMINI_PROMPT = `You are an expert handwriting transcription model analyzing a photographed "Miltenyi Biotec Contact Form" (printed labels, handwritten answers).
+const GEMINI_PROMPT = `You are an expert handwriting transcription model analyzing a photographed contact form (printed labels, handwritten answers).
 The photo may be rotated, skewed or taken at an angle. Locate the fields yourself.
 Transcribe ONLY the handwritten answers, verbatim. NEVER include the printed labels
 (e.g. "First Name", "Email", "University/Institution/Company", "Department", "How can we support you with your research?").

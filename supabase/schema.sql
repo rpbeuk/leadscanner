@@ -1,4 +1,4 @@
--- Miltenyi Lead Scanner Database Schema
+-- Lead Scanner Database Schema
 
 -- 1. Campaigns Table (per beurs/evenement)
 CREATE TABLE IF NOT EXISTS campaigns (
@@ -87,5 +87,5 @@ CREATE POLICY "Authenticated users can access leads" ON leads
 
 -- 5. Standaard Campagne invoegen voor tests
 INSERT INTO campaigns (id, name, location, is_active)
-VALUES ('U-10245', 'Miltenyi Expo BNL 2026', 'Amsterdam', true)
+VALUES ('U-10245', 'Sample Campaign', 'Amsterdam', true)
 ON CONFLICT (id) DO NOTHING;

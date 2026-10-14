@@ -281,7 +281,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 onFocus={() => setActiveField('notes')}
                 onChange={(e) => handleFieldChange('notes', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm leading-relaxed"
-                placeholder="Describe cell types, assays, instruments, and specific Miltenyi reagents..."
+                placeholder="Describe cell types, assays, instruments, and specific reagents..."
               />
 
               {/* Confidence Flags Chips */}
