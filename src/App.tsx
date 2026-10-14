@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import type { Lead } from './types';
 import { 
@@ -34,7 +34,7 @@ export function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [isProcessingDirectScan, setIsProcessingDirectScan] = useState<boolean>(false);
+  const processingLeads = useRef(new Map<string, Lead>());
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -87,7 +87,10 @@ export function App() {
 
     // 2. Read local
     const local = await getAllLocalLeads();
-    setLeads(local);
+    const localIds = new Set(local.map((lead) => lead.id));
+    const activeProcessing = Array.from(processingLeads.current.values())
+      .filter((lead) => !localIds.has(lead.id));
+    setLeads([...activeProcessing, ...local]);
   }, [campaignId]);
 
   useEffect(() => {
@@ -131,15 +134,68 @@ export function App() {
 
   // Direct camera / gallery captured from table
   const handleDirectImageCaptured = async (dataUrl: string) => {
-    setIsProcessingDirectScan(true);
+    const now = new Date().toISOString();
+    const placeholder: Lead = {
+      id: crypto.randomUUID(),
+      campaign_id: campaignId,
+      collected_by: repName,
+      first_name: '???',
+      last_name: '',
+      email: '',
+      institute: '',
+      department: '',
+      notes: '',
+      newsletter_opt_in: false,
+      email_warning: false,
+      confidence_flags: [],
+      image_url: dataUrl,
+      status: 'draft',
+      synced_to_cloud: false,
+      processing: true,
+      created_at: now,
+      updated_at: now
+    };
+
+    processingLeads.current.set(placeholder.id, placeholder);
+    setLeads((current) => [placeholder, ...current]);
+
     try {
-      const lead = await processFormImage(dataUrl, campaignId, repName);
-      setIsProcessingDirectScan(false);
-      setActiveReviewLead(lead);
+      const processedLead = await processFormImage(dataUrl, campaignId, repName);
+      const lead: Lead = {
+        ...processedLead,
+        id: placeholder.id,
+        processing: false,
+        created_at: placeholder.created_at
+      };
+      await saveLocalLead(lead);
+      processingLeads.current.delete(placeholder.id);
+      setLeads((current) => {
+        const exists = current.some((item) => item.id === lead.id);
+        return exists
+          ? current.map((item) => item.id === lead.id ? lead : item)
+          : [lead, ...current];
+      });
     } catch (err) {
       console.error('Scan processing error:', err);
-      setIsProcessingDirectScan(false);
-      alert('An error occurred while analyzing the form. Please try again.');
+      const failedLead: Lead = {
+        ...placeholder,
+        processing: false,
+        email_warning: true,
+        email_warning_reason: 'Form analysis failed. Open this lead to enter the details manually.',
+        updated_at: new Date().toISOString()
+      };
+      processingLeads.current.delete(placeholder.id);
+      setLeads((current) => {
+        const exists = current.some((item) => item.id === failedLead.id);
+        return exists
+          ? current.map((item) => item.id === failedLead.id ? failedLead : item)
+          : [failedLead, ...current];
+      });
+      try {
+        await saveLocalLead(failedLead);
+      } catch (saveError) {
+        console.error('Failed to save the lead for manual review:', saveError);
+      }
     }
   };
 
@@ -168,7 +224,7 @@ export function App() {
     await loadLeads();
   };
 
-  const pendingCount = leads.filter(l => !l.synced_to_cloud).length;
+  const pendingCount = leads.filter(l => !l.synced_to_cloud && !l.processing).length;
 
   if (!isSupabaseConfigured) {
     return (
@@ -227,22 +283,6 @@ export function App() {
           }}
         />
       </main>
-
-      {/* Direct Scan Processing Overlay */}
-      {isProcessingDirectScan && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center animate-fade-in">
-          <div className="w-16 h-16 rounded-3xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center mb-4">
-            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-          </div>
-          <h3 className="text-base font-bold flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-orange-400" />
-            <span>AI is analyzing the form...</span>
-          </h3>
-          <p className="text-xs text-slate-300 mt-1 max-w-xs">
-            Transcribing handwriting, extracting 7 fields, and creating crops
-          </p>
-        </div>
-      )}
 
       {/* Review & Edit Modal */}
       {activeReviewLead && (

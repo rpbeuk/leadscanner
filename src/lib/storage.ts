@@ -96,7 +96,7 @@ export async function deleteLocalLead(id: string): Promise<void> {
 // Background sync worker: pushes any un-synced leads to Supabase
 export async function syncPendingLeads(): Promise<{ total: number; synced: number }> {
   const leads = await getAllLocalLeads();
-  const pending = leads.filter(l => !l.synced_to_cloud);
+  const pending = leads.filter(l => !l.synced_to_cloud && !l.processing);
   let syncedCount = 0;
 
   for (const lead of pending) {

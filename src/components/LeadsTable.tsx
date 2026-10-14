@@ -4,6 +4,7 @@ import {
   FileSpreadsheet, 
   Mail, 
   Camera, 
+  Loader2,
   Search, 
   AlertTriangle, 
   Building, 
@@ -49,6 +50,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
   // Filter leads for this campaign and search term
   const campaignLeads = leads.filter(l => l.campaign_id === activeCampaignId);
+  const exportableLeads = campaignLeads.filter((lead) => !lead.processing);
   const filteredLeads = campaignLeads.filter((lead) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -66,7 +68,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       <div className="flex items-center justify-between px-1">
         <div>
           <h1 className="text-lg font-bold text-slate-900 leading-tight">
-            Event Lead forms
+            Event forms
           </h1>
           <p className="text-xs text-slate-500">
             {campaignLeads.length} {campaignLeads.length === 1 ? 'lead' : 'leads'} in database
@@ -74,11 +76,11 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         </div>
 
         {/* Export & Mail Actions */}
-        {campaignLeads.length > 0 && (
+        {exportableLeads.length > 0 && (
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => exportLeadsToExcel(campaignLeads, activeCampaignId)}
+              onClick={() => exportLeadsToExcel(exportableLeads, activeCampaignId)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
               title="Export to Excel (.xlsx)"
             >
@@ -88,7 +90,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
             <button
               type="button"
-              onClick={() => openMarketingMailClient(campaignLeads, activeCampaignId, repName, eventEmail)}
+              onClick={() => openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail)}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
               title="Open email draft; attach the Excel export manually"
             >
@@ -166,19 +168,28 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
           filteredLeads.map((lead) => (
             <div
               key={lead.id}
-              onClick={() => onSelectLead(lead)}
+              onClick={lead.processing ? undefined : () => onSelectLead(lead)}
+              aria-busy={lead.processing || undefined}
               className={`p-3.5 sm:p-4 ${
-                lead.status === 'reviewed'
+                lead.processing
+                  ? 'bg-slate-50'
+                  : lead.status === 'reviewed'
                   ? 'bg-orange-200/80 hover:bg-orange-200 active:bg-orange-300/70'
                   : 'hover:bg-slate-50/80 active:bg-blue-50/50'
-              } transition-colors cursor-pointer flex items-center justify-between gap-3 group`}
+              } transition-colors ${lead.processing ? 'cursor-wait' : 'cursor-pointer'} flex items-center justify-between gap-3 group`}
             >
               <div className="flex-1 min-w-0">
                 {/* Name & Indicators */}
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900 text-sm group-hover:text-blue-900 truncate">
-                    {lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Unnamed form'}
+                    {lead.processing ? '???' : lead.first_name || lead.last_name ? `${lead.first_name} ${lead.last_name}` : 'Unnamed form'}
                   </span>
+                  {lead.processing && (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Analyzing form...
+                    </span>
+                  )}
                   {lead.email_warning && (
                     <span title="Check email address" className="shrink-0">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
@@ -193,7 +204,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
                 {/* Email */}
                 <p className="text-xs text-slate-500 font-mono truncate mt-0.5">
-                  {lead.email || 'No email'}
+                  {lead.processing ? '???' : lead.email || 'No email'}
                 </p>
 
                 {/* Institute & Department */}
