@@ -56,16 +56,15 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
     noteMatches.forEach((match, index) => {
       if (match.start < cursor) return;
       parts.push(lead.notes.slice(cursor, match.start));
-      const orangeStrength = 0.1 + (1 - match.confidence) * 0.55;
+      const orangeStrength = Math.round(255 - match.confidence * 110);
       parts.push(
-        <mark
+        <span
           key={`${match.start}-${index}`}
           title={`OCR confidence: ${Math.round(match.confidence * 100)}%${match.reason ? ` - ${match.reason}` : ''}`}
-          className="rounded-sm"
-          style={{ backgroundColor: `rgba(249, 115, 22, ${orangeStrength})`, color: '#7c2d12' }}
+          style={{ color: `rgb(234, ${orangeStrength}, 22)` }}
         >
           {match.word}
-        </mark>
+        </span>
       );
       cursor = match.end;
     });
@@ -339,7 +338,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowOriginalPhoto(true)}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+                className="whitespace-nowrap px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors flex items-center gap-1.5 shrink-0"
               >
                 <Eye className="w-4 h-4" />
                 View photo
