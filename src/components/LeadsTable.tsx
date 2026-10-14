@@ -7,7 +7,6 @@ import {
   Search, 
   AlertTriangle, 
   Building, 
-  Trash2, 
   ChevronRight,
   Upload
 } from 'lucide-react';
@@ -20,7 +19,6 @@ interface LeadsTableProps {
   eventEmail: string;
   onDirectImageCaptured: (dataUrl: string) => void;
   onSelectLead: (lead: Lead) => void;
-  onDeleteLead: (id: string) => void;
 }
 
 export const LeadsTable: React.FC<LeadsTableProps> = ({
@@ -29,8 +27,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   repName,
   eventEmail,
   onDirectImageCaptured,
-  onSelectLead,
-  onDeleteLead
+  onSelectLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -170,7 +167,11 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div
               key={lead.id}
               onClick={() => onSelectLead(lead)}
-              className="p-3.5 sm:p-4 hover:bg-slate-50/80 active:bg-blue-50/50 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+              className={`p-3.5 sm:p-4 ${
+                lead.status === 'reviewed'
+                  ? 'bg-orange-100/70 hover:bg-orange-100 active:bg-orange-200/70'
+                  : 'hover:bg-slate-50/80 active:bg-blue-50/50'
+              } transition-colors cursor-pointer flex items-center justify-between gap-3 group`}
             >
               <div className="flex-1 min-w-0">
                 {/* Name & Indicators */}
@@ -212,21 +213,8 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 )}
               </div>
 
-              {/* Right Side: Arrow & Delete */}
+              {/* Right Side: Arrow */}
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete lead ${lead.first_name} ${lead.last_name}?`)) {
-                      onDeleteLead(lead.id);
-                    }
-                  }}
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Delete"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
               </div>
             </div>

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import type { Lead } from '../types';
-import { AlertTriangle, Check, X, Building, Mail, Sparkles, ChevronRight, ChevronLeft, Eye } from 'lucide-react';
+import { AlertTriangle, Check, X, Building, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
 import { matchCrmAccount } from '../lib/crmAccounts';
 
 interface ReviewModalProps {
   lead: Lead;
   onSave: (updatedLead: Lead) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
   onNext?: () => void;
   onPrev?: () => void;
@@ -19,6 +20,7 @@ interface ReviewModalProps {
 export const ReviewModal: React.FC<ReviewModalProps> = ({
   lead: initialLead,
   onSave,
+  onDelete,
   onClose,
   onNext,
   onPrev,
@@ -361,10 +363,14 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-200/70 transition-colors"
+              onClick={() => {
+                const name = `${lead.first_name} ${lead.last_name}`.trim() || 'this lead';
+                if (confirm(`Delete ${name}?`)) onDelete(lead.id);
+              }}
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-rose-700 hover:bg-rose-50 transition-colors flex items-center gap-1.5"
             >
-              Cancel
+              <Trash2 className="w-4 h-4" />
+              Delete
             </button>
             <button
               type="button"
@@ -372,7 +378,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-md flex items-center gap-1.5 transition-colors"
             >
               <Check className="w-4 h-4" />
-              <span>Confirm & save</span>
+              <span>Confirm</span>
             </button>
           </div>
         </div>
