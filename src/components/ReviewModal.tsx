@@ -409,7 +409,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               type="button"
               onClick={() => {
                 const name = `${lead.first_name} ${lead.last_name}`.trim() || 'this lead';
-                if (confirm(`Delete ${name}?`)) onDelete(lead.id);
+                if (confirm(`Are you sure you want to delete the lead from ${name}?`)) onDelete(lead.id);
               }}
               className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-rose-700 hover:bg-rose-50 transition-colors flex items-center gap-1.5"
             >
