@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { Lead } from '../types';
 import { AlertTriangle, Check, X, Mail, Sparkles, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
@@ -31,6 +31,48 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
 }) => {
   const [lead, setLead] = useState<Lead>({ ...initialLead });
   const [showOriginalPhoto, setShowOriginalPhoto] = useState(false);
+  const [notesScrollTop, setNotesScrollTop] = useState(0);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const noteMatches = lead.confidence_flags
+    .filter((flag) => flag.field.toLowerCase() === 'notes' && flag.word.trim())
+    .flatMap((flag) => {
+      const escapedWord = flag.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+      return Array.from(lead.notes.matchAll(pattern), (match) => ({
+        start: match.index,
+        end: match.index + match[0].length,
+        confidence: Math.max(0, Math.min(1, flag.confidence)),
+        word: match[0],
+        reason: flag.reason
+      }));
+    })
+    .sort((a, b) => a.start - b.start || a.confidence - b.confidence);
+
+  const renderNotesWithConfidence = () => {
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+
+    noteMatches.forEach((match, index) => {
+      if (match.start < cursor) return;
+      parts.push(lead.notes.slice(cursor, match.start));
+      const orangeStrength = 0.1 + (1 - match.confidence) * 0.55;
+      parts.push(
+        <mark
+          key={`${match.start}-${index}`}
+          title={`OCR confidence: ${Math.round(match.confidence * 100)}%${match.reason ? ` - ${match.reason}` : ''}`}
+          className="rounded-sm"
+          style={{ backgroundColor: `rgba(249, 115, 22, ${orangeStrength})`, color: '#7c2d12' }}
+        >
+          {match.word}
+        </mark>
+      );
+      cursor = match.end;
+    });
+
+    parts.push(lead.notes.slice(cursor));
+    return parts;
+  };
 
   const handleFieldChange = (field: keyof Lead, value: any) => {
     const updated = { ...lead, [field]: value };
@@ -204,13 +246,32 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                   Notes
                 </label>
               </div>
-              <textarea
-                rows={4}
-                value={lead.notes}
-                onChange={(e) => handleFieldChange('notes', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-sm leading-relaxed"
-                placeholder="Describe cell types, assays, instruments, and specific reagents..."
-              />
+              <div className="relative">
+                {noteMatches.length > 0 && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-px z-0 overflow-hidden rounded-lg px-3 py-2 text-sm leading-relaxed"
+                  >
+                    <div
+                      className="whitespace-pre-wrap break-words"
+                      style={{ transform: `translateY(-${notesScrollTop}px)` }}
+                    >
+                      {renderNotesWithConfidence()}
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  ref={notesTextareaRef}
+                  rows={8}
+                  value={lead.notes}
+                  onChange={(e) => handleFieldChange('notes', e.target.value)}
+                  onScroll={(e) => setNotesScrollTop(e.currentTarget.scrollTop)}
+                  className={`relative z-10 w-full resize-none rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:ring-[#002B49] ${
+                    noteMatches.length > 0 ? 'text-transparent caret-slate-900 selection:bg-orange-200/70' : ''
+                  }`}
+                  placeholder="Describe cell types, assays, instruments, and specific reagents..."
+                />
+              </div>
 
               {/* Confidence Flags Chips */}
               {lead.confidence_flags && lead.confidence_flags.length > 0 && (
