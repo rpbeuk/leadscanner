@@ -339,7 +339,9 @@ export function App() {
       setLeads((current) => current.map((lead) =>
         lead.id === leadWithModifier.id ? leadWithModifier : lead
       ));
-      alert('This change is saved on this device but could not be shared with other users. Check the connection and confirm again to retry.');
+      alert(
+        `This change is saved on this device but could not be shared with other users. Check the connection and confirm again to retry.\n\nSupabase error: ${res.error || 'Unknown error'}`
+      );
       return;
     }
     try {

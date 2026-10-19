@@ -30,7 +30,8 @@ export async function syncLeadToSupabase(lead: Lead): Promise<{ success: boolean
     department: lead.department,
     notes: lead.notes,
     newsletter_opt_in: lead.newsletter_opt_in,
-    account_id: lead.account_id || null,
+    // Local CRM catalog IDs are not Supabase account UUIDs.
+    account_id: null,
     email_warning: lead.email_warning,
     confidence_flags: lead.confidence_flags,
     ocr_suggestions: lead.ocr_suggestions || null,
