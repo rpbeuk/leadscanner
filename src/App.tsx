@@ -43,6 +43,8 @@ export function App() {
   const activeOcrJobs = useRef(0);
   const queuedOcrJobs = useRef<Array<() => void>>([]);
   const isRefreshingLeads = useRef(false);
+  const refreshLeadsAgain = useRef(false);
+  const isRetryingPendingUploads = useRef(false);
 
   const acquireOcrSlot = () => new Promise<void>((resolve) => {
     const start = () => {
@@ -97,7 +99,10 @@ export function App() {
 
   // Load leads directly from Supabase and sync local storage
   const loadLeads = useCallback(async () => {
-    if (isRefreshingLeads.current) return;
+    if (isRefreshingLeads.current) {
+      refreshLeadsAgain.current = true;
+      return;
+    }
     isRefreshingLeads.current = true;
     try {
       try {
@@ -132,6 +137,10 @@ export function App() {
       setLeads([...activeProcessing, ...local]);
     } finally {
       isRefreshingLeads.current = false;
+      if (refreshLeadsAgain.current) {
+        refreshLeadsAgain.current = false;
+        void loadLeads();
+      }
     }
   }, [campaignId]);
 
@@ -140,8 +149,43 @@ export function App() {
     loadLeads();
 
     const refreshTimer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void loadLeads();
+      if (document.visibilityState !== 'visible') return;
+      void loadLeads();
+      if (isRetryingPendingUploads.current) return;
+      isRetryingPendingUploads.current = true;
+      void getAllLocalLeads()
+        .then(async (localLeads) => {
+          if (localLeads.some((lead) => !lead.synced_to_cloud && !lead.processing)) {
+            await syncPendingLeads();
+            await loadLeads();
+          }
+        })
+        .catch((error: unknown) => {
+          console.error('Automatic retry of pending lead uploads failed:', error);
+        })
+        .finally(() => {
+          isRetryingPendingUploads.current = false;
+        });
     }, 5000);
+    const channel = supabase
+      .channel(`campaign-leads-${campaignId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leads',
+          filter: `campaign_id=eq.${campaignId}`
+        },
+        () => void loadLeads()
+      )
+      .subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') {
+          void loadLeads();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Realtime lead subscription unavailable; polling remains enabled.', error);
+        }
+      });
     const handleFocus = () => {
       if (document.visibilityState === 'visible') void loadLeads();
     };
@@ -158,6 +202,7 @@ export function App() {
 
     return () => {
       window.clearInterval(refreshTimer);
+      void supabase.removeChannel(channel);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);

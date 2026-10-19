@@ -19,41 +19,55 @@ export async function testCloudConnection(): Promise<boolean> {
 }
 
 export async function syncLeadToSupabase(lead: Lead): Promise<{ success: boolean; error?: string }> {
-  try {
-    const payload = {
-      id: lead.id,
-      campaign_id: lead.campaign_id,
-      collected_by: lead.collected_by,
-      first_name: lead.first_name,
-      last_name: lead.last_name,
-      email: lead.email,
-      institute: lead.institute,
-      department: lead.department,
-      notes: lead.notes,
-      newsletter_opt_in: lead.newsletter_opt_in,
-      account_id: lead.account_id || null,
-      email_warning: lead.email_warning,
-      confidence_flags: lead.confidence_flags,
-      ocr_suggestions: lead.ocr_suggestions || null,
-      image_url: lead.image_url || null,
-      status: lead.status,
-      updated_at: lead.updated_at || new Date().toISOString()
-    };
+  const payload = {
+    id: lead.id,
+    campaign_id: lead.campaign_id,
+    collected_by: lead.collected_by,
+    first_name: lead.first_name,
+    last_name: lead.last_name,
+    email: lead.email,
+    institute: lead.institute,
+    department: lead.department,
+    notes: lead.notes,
+    newsletter_opt_in: lead.newsletter_opt_in,
+    account_id: lead.account_id || null,
+    email_warning: lead.email_warning,
+    confidence_flags: lead.confidence_flags,
+    ocr_suggestions: lead.ocr_suggestions || null,
+    image_url: lead.image_url || null,
+    status: lead.status,
+    updated_at: lead.updated_at || new Date().toISOString()
+  };
 
-    const { error } = await supabase
-      .from('leads')
-      .upsert(payload, { onConflict: 'id' });
+  const retryDelays = [500, 1000, 2000];
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .upsert(payload, { onConflict: 'id' });
 
-    if (error) {
-      console.error('Supabase sync error:', error);
-      return { success: false, error: error.message };
+      if (!error) return { success: true };
+
+      const retryable = error.code === 'FETCH_ERROR' ||
+        error.code === 'ECONNRESET' ||
+        /\b(408|425|429|5\d{2})\b/.test(`${error.code} ${error.message}`) ||
+        /network|fetch|timeout|temporar/i.test(error.message);
+      if (!retryable || attempt === retryDelays.length) {
+        console.error('Supabase sync error:', error);
+        return { success: false, error: error.message };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt === retryDelays.length) {
+        console.error('Failed to sync to Supabase:', error);
+        return { success: false, error: message };
+      }
     }
 
-    return { success: true };
-  } catch (err: any) {
-    console.error('Failed to sync to Supabase:', err);
-    return { success: false, error: err?.message || 'Network error' };
+    await new Promise((resolve) => window.setTimeout(resolve, retryDelays[attempt]));
   }
+
+  return { success: false, error: 'Supabase sync failed after retries.' };
 }
 
 export async function fetchLeadsFromSupabase(campaignId?: string): Promise<Lead[]> {
