@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Database, RefreshCw, User, Tag } from 'lucide-react';
 import { isActualRepName, saveRepName, saveCampaignId, saveEventEmail } from '../lib/storage';
-import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, getSavedAccessCode, saveAccessCode, ENGINES } from '../lib/ocrEngine';
+import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, ENGINES } from '../lib/ocrEngine';
 
 interface SettingsModalProps {
   currentRepName: string;
@@ -33,7 +33,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [eventEmail, setEventEmail] = useState(currentEventEmail);
   const [claudeKey, setClaudeKey] = useState(getSavedClaudeKey());
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
-  const [accessCode, setAccessCode] = useState(getSavedAccessCode());
   const [repNameError, setRepNameError] = useState<string | null>(null);
   const [pendingCampaignSwitch, setPendingCampaignSwitch] = useState<{
     repName: string;
@@ -57,7 +56,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     saveEventEmail(actualEventEmail);
     saveClaudeKey(claudeKey);
     saveGeminiKey(geminiKey);
-    saveAccessCode(accessCode);
     onUpdate(actualRepName, actualCampaignId, actualEventEmail);
     onClose();
   };
@@ -192,19 +190,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* OCR API keys */}
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Azure OCR access code</label>
-              <input
-                type="text"
-                autoComplete="off"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#002B49] text-base font-mono text-slate-900"
-              />
-            </div>
             {ENGINES.claude && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Claude API key (backup 1)</label>

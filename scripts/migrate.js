@@ -19,12 +19,24 @@ async function runMigration() {
     process.exit(1);
   }
 
+  const caPath = process.env.DB_CA_PATH;
+  if (!caPath) {
+    console.error('DB_CA_PATH is not set in .env. Configure it with the Supabase database CA certificate path.');
+    process.exit(1);
+  }
+
+  let ca;
+  try {
+    ca = fs.readFileSync(path.resolve(process.cwd(), caPath), 'utf8');
+  } catch (err) {
+    console.error('Unable to read the Supabase database CA certificate:', err);
+    process.exit(1);
+  }
+
   console.log('Connecting to PostgreSQL database at Supabase...');
   const client = new Client({
     connectionString,
-    ssl: {
-      rejectUnauthorized: false
-    }
+    ssl: { rejectUnauthorized: true, ca }
   });
 
   try {

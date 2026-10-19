@@ -5,15 +5,72 @@
 //   AZURE_OPENAI_ENDPOINT    e.g. https://leadscanneroai.openai.azure.com
 //   AZURE_OPENAI_KEY
 //   AZURE_OPENAI_DEPLOYMENT  the deployment name chosen in Foundry
-//   SCAN_ACCESS_CODE         shared code the app sends (blocks strangers from burning budget)
+//   ALLOWED_ORIGINS          comma-separated browser origins; defaults to the GitHub Pages origin
+//   SUPABASE_URL / SUPABASE_ANON_KEY are provided automatically by Supabase.
 //
 // Deploy with: supabase functions deploy scan-form --no-verify-jwt
+// The user's Supabase access token is verified manually because platform JWT verification is disabled.
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'content-type, x-access-code, authorization, apikey',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get('ALLOWED_ORIGINS') || 'https://rpbeuk.github.io')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
+const requestTimesByUser = new Map<string, number[]>();
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  return {
+    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : 'null',
+    'Vary': 'Origin',
+    'Access-Control-Allow-Headers': 'content-type, authorization, apikey',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+}
+
+async function verifyUser(req: Request): Promise<string | null> {
+  const authorization = req.headers.get('authorization') || '';
+  if (!/^Bearer\s+\S+$/i.test(authorization)) return null;
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase Auth verification is not configured.');
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      authorization
+    },
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) return null;
+
+  const user = await response.json().catch(() => null);
+  return typeof user?.id === 'string' ? user.id : null;
+}
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const recentRequests = (requestTimesByUser.get(userId) || [])
+    .filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
+  recentRequests.push(now);
+  requestTimesByUser.set(userId, recentRequests);
+
+  if (requestTimesByUser.size > 1000) {
+    for (const [id, timestamps] of requestTimesByUser) {
+      if (!timestamps.some((timestamp) => now - timestamp < RATE_WINDOW_MS)) {
+        requestTimesByUser.delete(id);
+      }
+    }
+  }
+
+  return recentRequests.length > RATE_LIMIT;
+}
 
 const FIELDS = ['first_name', 'last_name', 'email', 'institute', 'department', 'notes'];
 
@@ -74,29 +131,43 @@ const SCHEMA = {
   required: ['first_name', 'last_name', 'email', 'institute', 'department', 'notes', 'newsletter_opt_in', 'boxes', 'confidence_flags']
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'content-type': 'application/json' } });
+function json(req: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders(req), 'content-type': 'application/json' }
+  });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(req) });
+  if (req.method !== 'POST') return json(req, { error: 'POST only' }, 405);
 
   const endpoint = (Deno.env.get('AZURE_OPENAI_ENDPOINT') || '').replace(/\/+$/, '');
   const key = Deno.env.get('AZURE_OPENAI_KEY');
   const deployment = Deno.env.get('AZURE_OPENAI_DEPLOYMENT');
-  const accessCode = Deno.env.get('SCAN_ACCESS_CODE');
-  if (!endpoint || !key || !deployment || !accessCode) return json({ error: 'Function is not configured (missing secrets)' }, 500);
+  if (!endpoint || !key || !deployment) return json(req, { error: 'Function is not configured' }, 500);
 
-  if (req.headers.get('x-access-code') !== accessCode) return json({ error: 'Invalid access code' }, 401);
+  let userId: string | null;
+  try {
+    userId = await verifyUser(req);
+  } catch (error) {
+    console.error('Unable to verify OCR request user:', error);
+    return json(req, { error: 'Unable to verify sign-in. Please try again.' }, 503);
+  }
+  if (!userId) return json(req, { error: 'Not signed in' }, 401);
+  if (isRateLimited(userId)) {
+    return json(req, { error: 'Too many scans, try again in a minute' }, 429);
+  }
 
   let image: string;
   try {
     ({ image } = await req.json());
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
+    return json(req, { error: 'Invalid JSON body' }, 400);
   }
-  if (typeof image !== 'string' || !image.startsWith('data:image/')) return json({ error: 'image must be a data URL' }, 400);
+  if (typeof image !== 'string' || !image.startsWith('data:image/')) {
+    return json(req, { error: 'image must be a data URL' }, 400);
+  }
 
   const body: Record<string, unknown> = {
     model: deployment,
@@ -135,13 +206,13 @@ Deno.serve(async (req) => {
     }
     if (!res.ok) {
       const err = await res.json().catch(() => null);
-      return json({ error: `Azure ${res.status}: ${err?.error?.message || res.statusText}` }, 502);
+      return json(req, { error: `Azure ${res.status}: ${err?.error?.message || res.statusText}` }, 502);
     }
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) return json({ error: 'Azure returned no result' }, 502);
-    return json(JSON.parse(content));
+    if (!content) return json(req, { error: 'Azure returned no result' }, 502);
+    return json(req, JSON.parse(content));
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : String(e) }, 502);
+    return json(req, { error: e instanceof Error ? e.message : String(e) }, 502);
   }
 });
