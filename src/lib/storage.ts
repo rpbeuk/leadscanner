@@ -98,6 +98,26 @@ export async function deleteLocalLead(id: string): Promise<void> {
   });
 }
 
+export async function deleteLocalLeadsForCampaign(campaignId: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const index = tx.objectStore(STORE_NAME).index('campaign_id');
+    const request = index.openCursor(IDBKeyRange.only(campaignId));
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      cursor.delete();
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Local event leads could not be deleted.'));
+  });
+}
+
 // Background sync worker: pushes any un-synced leads to Supabase
 export async function syncPendingLeads(): Promise<{ total: number; synced: number }> {
   const leads = await getAllLocalLeads();

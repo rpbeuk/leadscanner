@@ -2,6 +2,7 @@ import type { Lead, ConfidenceFlag } from '../types';
 import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
 import { supabaseUrl, supabaseAnonKey } from './supabase';
+import { applyPersonalOcrCorrections } from './personalizedOcr';
 
 export const ENGINES = { azure: true, claude: false, gemini: false };
 
@@ -471,8 +472,14 @@ function getOcrAttempts(imageDataUrl: string): Array<() => Promise<OcrAttemptRes
 }
 
 async function extractLeadFromImage(
-  rawImageDataUrl: string
-): Promise<{ extracted: Extracted; engineError?: string; imageDataUrl: string }> {
+  rawImageDataUrl: string,
+  userId: string
+): Promise<{
+  extracted: Extracted;
+  ocrSuggestions: Partial<Record<FieldKey, string>>;
+  engineError?: string;
+  imageDataUrl: string;
+}> {
   const safeImageDataUrl = await resizeImageForMobile(rawImageDataUrl, 1536);
   const attempts = getOcrAttempts(safeImageDataUrl);
   const errors: string[] = [];
@@ -507,11 +514,28 @@ async function extractLeadFromImage(
         ? `Automatic form recognition failed (${errors.join(' | ')}). Enter the fields manually.`
         : undefined;
 
-  const normalized = sanitizeExtracted(extracted);
-  normalized.email = normalized.email.replace(/\s+/g, '').toLowerCase();
+  const suggested = sanitizeExtracted(extracted);
+  suggested.email = suggested.email.replace(/\s+/g, '').toLowerCase();
+  let normalized = suggested;
+  try {
+    normalized = {
+      ...suggested,
+      ...await applyPersonalOcrCorrections(userId, suggested)
+    };
+  } catch (error) {
+    console.error('Could not load personalized OCR corrections:', error);
+  }
 
   return {
     extracted: normalized,
+    ocrSuggestions: {
+      first_name: suggested.first_name,
+      last_name: suggested.last_name,
+      email: suggested.email,
+      institute: suggested.institute,
+      department: suggested.department,
+      notes: suggested.notes
+    },
     engineError,
     imageDataUrl: safeImageDataUrl
   };
@@ -520,9 +544,10 @@ async function extractLeadFromImage(
 export async function processFormImage(
   rawImageDataUrl: string,
   campaignId: string,
-  collectedBy: string
+  collectedBy: string,
+  userId = ''
 ): Promise<Lead> {
-  const { extracted, engineError, imageDataUrl } = await extractLeadFromImage(rawImageDataUrl);
+  const { extracted, ocrSuggestions, engineError, imageDataUrl } = await extractLeadFromImage(rawImageDataUrl, userId);
   const emailCheck = engineError
     ? { warning: true, reason: engineError }
     : validateEmailMatch(extracted.email, extracted.first_name, extracted.last_name);
@@ -546,6 +571,7 @@ export async function processFormImage(
     email_warning: emailCheck.warning,
     email_warning_reason: emailCheck.reason,
     confidence_flags: extracted.confidence_flags,
+    ocr_suggestions: ocrSuggestions,
     field_crops: crops,
     image_url: imageDataUrl,
     status: 'draft',

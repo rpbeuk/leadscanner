@@ -5,6 +5,7 @@ import {
   Mail, 
   Camera, 
   Camera as CameraStack,
+  Archive,
   Loader2,
   Search, 
   AlertTriangle, 
@@ -23,6 +24,7 @@ interface LeadsTableProps {
   eventEmail: string;
   onRequireRepName: () => void;
   onDirectImageCaptured: (dataUrl: string) => void;
+  onCloseEvent: (campaignId: string) => Promise<void>;
   onSelectLead: (lead: Lead) => void;
 }
 
@@ -33,9 +35,13 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   eventEmail,
   onRequireRepName,
   onDirectImageCaptured,
+  onCloseEvent,
   onSelectLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [closeDialogAction, setCloseDialogAction] = useState<'email' | 'close' | null>(null);
+  const [isClosingEvent, setIsClosingEvent] = useState(false);
+  const [closeEventError, setCloseEventError] = useState<string | null>(null);
   const [isFastScanActive, setIsFastScanActive] = useState(false);
   const [isFastCameraStarting, setIsFastCameraStarting] = useState(false);
   const [fastScanCount, setFastScanCount] = useState(0);
@@ -158,9 +164,32 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     setFastCameraError(null);
   };
 
+  const handleEmailDraft = () => {
+    openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail);
+    setCloseDialogAction(null);
+  };
+
+  const handleCloseEvent = async (alsoOpenEmail: boolean) => {
+    setIsClosingEvent(true);
+    setCloseEventError(null);
+    try {
+      if (alsoOpenEmail) {
+        openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail);
+      }
+      await onCloseEvent(activeCampaignId);
+      setCloseDialogAction(null);
+    } catch (error) {
+      console.error('Failed to close event:', error);
+      setCloseEventError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsClosingEvent(false);
+    }
+  };
+
   // Filter leads for this campaign and search term
   const campaignLeads = leads.filter(l => l.campaign_id === activeCampaignId);
   const exportableLeads = campaignLeads.filter((lead) => !lead.processing);
+  const hasProcessingLeads = campaignLeads.some((lead) => lead.processing);
   const filteredLeads = campaignLeads.filter((lead) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -186,26 +215,46 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         </div>
 
         {/* Export & Mail Actions */}
-        {exportableLeads.length > 0 && (
+        {campaignLeads.length > 0 && (
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => exportLeadsToExcel(exportableLeads, activeCampaignId)}
-              className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Export to Excel (.xlsx)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">Excel</span>
-            </button>
+            {exportableLeads.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => exportLeadsToExcel(exportableLeads, activeCampaignId)}
+                  className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+                  title="Export to Excel (.xlsx)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline">Excel</span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseEventError(null);
+                    setCloseDialogAction('email');
+                  }}
+                  className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+                  title="Open an email draft for this event"
+                >
+                  <Mail className="w-3.5 h-3.5 text-blue-900" />
+                  <span className="hidden sm:inline">Mail</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
-              onClick={() => openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail)}
-              className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Open email draft; attach the Excel export manually"
+              onClick={() => {
+                setCloseEventError(null);
+                setCloseDialogAction('close');
+              }}
+              disabled={isClosingEvent}
+              className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
+              title="Close this event and remove its leads"
             >
-              <Mail className="w-3.5 h-3.5 text-blue-900" />
-              <span className="hidden sm:inline">Mail</span>
+              <Archive className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Close event</span>
             </button>
           </div>
         )}
@@ -452,6 +501,71 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               Stays open between photos; scans run in the background.
             </p>
             <p className="mt-1 text-[11px] text-white/70">Returns to overview after 10 seconds idle.</p>
+          </div>
+        </div>
+      )}
+
+      {closeDialogAction && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="close-event-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 id="close-event-title" className="text-lg font-bold text-slate-900">
+              {closeDialogAction === 'email' ? 'Prepare end-of-day email?' : 'Close this event?'}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              {closeDialogAction === 'email'
+                ? `There are ${campaignLeads.length} leads for this event. Do you also want to permanently remove them from Supabase and this device, and close the event?`
+                : `This will permanently delete all ${campaignLeads.length} leads for ${activeCampaignId} from Supabase and this device.`}
+            </p>
+            {closeDialogAction === 'email' && (
+              <p className="mt-2 text-sm font-medium text-amber-800">
+                Export the Excel file and attach it to the email before closing the event.
+              </p>
+            )}
+            {hasProcessingLeads && (
+              <p role="alert" className="mt-3 text-sm font-medium text-amber-800">
+                {campaignLeads.filter((lead) => lead.processing).length} form(s) are still being processed. Wait for them to finish before closing the event.
+              </p>
+            )}
+            {closeEventError && (
+              <p role="alert" className="mt-3 text-sm font-medium text-red-700">{closeEventError}</p>
+            )}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCloseDialogAction(null)}
+                disabled={isClosingEvent}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              {closeDialogAction === 'email' && (
+                <button
+                  type="button"
+                  onClick={handleEmailDraft}
+                  disabled={isClosingEvent}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Open email only
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (closeDialogAction === 'email') void handleCloseEvent(true);
+                  else void handleCloseEvent(false);
+                }}
+                disabled={isClosingEvent || hasProcessingLeads}
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isClosingEvent && <Loader2 className="h-4 w-4 animate-spin" />}
+                {closeDialogAction === 'email' ? 'Open email & close event' : 'Close event & delete leads'}
+              </button>
+            </div>
           </div>
         </div>
       )}

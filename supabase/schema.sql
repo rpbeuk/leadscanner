@@ -52,6 +52,28 @@ CREATE TABLE IF NOT EXISTS leads (
 CREATE INDEX IF NOT EXISTS idx_leads_campaign ON leads(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
 
+-- Store each signed-in user's private OCR corrections separately.
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS ocr_suggestions JSONB;
+
+CREATE TABLE IF NOT EXISTS user_ocr_corrections (
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    field TEXT NOT NULL CHECK (field IN ('first_name', 'last_name', 'email', 'institute', 'department', 'notes')),
+    source_text TEXT NOT NULL CHECK (length(source_text) > 0),
+    corrected_text TEXT NOT NULL CHECK (length(corrected_text) > 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, field, source_text)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_ocr_corrections TO authenticated;
+ALTER TABLE user_ocr_corrections ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage their own OCR corrections" ON user_ocr_corrections;
+CREATE POLICY "Users manage their own OCR corrections"
+    ON user_ocr_corrections
+    FOR ALL
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 -- 4. Row Level Security (RLS) & Policies
 -- All app access requires an invited, authenticated Supabase user.
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;

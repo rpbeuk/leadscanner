@@ -25,6 +25,10 @@ export interface Lead {
   email_warning: boolean;
   email_warning_reason?: string;
   confidence_flags: ConfidenceFlag[];
+  ocr_suggestions?: Partial<Record<
+    'first_name' | 'last_name' | 'email' | 'institute' | 'department' | 'notes',
+    string
+  >>;
   
   // Images
   image_url?: string;

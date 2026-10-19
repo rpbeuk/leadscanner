@@ -6,6 +6,7 @@ import { processFormImage } from '../lib/ocrEngine';
 interface ScannerModalProps {
   campaignId: string;
   repName: string;
+  userId?: string;
   onLeadCaptured: (lead: Lead) => void;
   onBatchCaptured: (leads: Lead[]) => void;
   onClose: () => void;
@@ -14,6 +15,7 @@ interface ScannerModalProps {
 export const ScannerModal: React.FC<ScannerModalProps> = ({
   campaignId,
   repName,
+  userId,
   onLeadCaptured,
   onClose
 }) => {
@@ -98,7 +100,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   const handleImageCaptured = async (dataUrl: string) => {
     setIsProcessing(true);
     try {
-      const lead = await processFormImage(dataUrl, campaignId, repName);
+      const lead = await processFormImage(dataUrl, campaignId, repName, userId);
       setIsProcessing(false);
       stopCamera();
       onLeadCaptured(lead);
