@@ -41,6 +41,7 @@ export interface Lead {
   synced_to_cloud: boolean;
   processing?: boolean;
   processing_number?: number;
+  processing_status?: 'queued' | 'analyzing';
   created_at: string;
   updated_at: string;
 }

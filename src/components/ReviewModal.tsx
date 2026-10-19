@@ -61,6 +61,22 @@ function renderConfidenceText(text: string, matches: ConfidenceMatch[]): React.R
   return parts;
 }
 
+function selectWordAtCaret(input: HTMLInputElement) {
+  const cursor = input.selectionStart;
+  if (cursor === null) return;
+
+  const pattern = input.type === 'email'
+    ? /[^\s@]+@[^\s@]+/g
+    : /[\p{L}\p{N}_]+(?:['’\-][\p{L}\p{N}_]+)*/gu;
+  const match = Array.from(input.value.matchAll(pattern)).find(
+    (word) => word.index !== undefined && cursor >= word.index && cursor <= word.index + word[0].length
+  );
+
+  if (match?.index !== undefined) {
+    input.setSelectionRange(match.index, match.index + match[0].length);
+  }
+}
+
 interface ConfidenceTextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   value: string;
   confidenceFlags: ConfidenceFlag[];
@@ -97,6 +113,12 @@ const ConfidenceTextInput: React.FC<ConfidenceTextInputProps> = ({
         {...inputProps}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
+        onClick={(event) => {
+          const input = event.currentTarget;
+          window.requestAnimationFrame(() => {
+            if (document.activeElement === input) selectWordAtCaret(input);
+          });
+        }}
         onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
         className={`${className} ${matches.length > 0 ? 'text-transparent' : ''}`}
       />

@@ -375,45 +375,54 @@ async function extractWithAzure(
   base64Image: string,
   accessCode: string
 ): Promise<OcrAttemptResult> {
-  try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/${OCR_FUNCTION_NAME}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        apikey: supabaseAnonKey,
-        'x-access-code': accessCode
-      },
-      body: JSON.stringify({ image: base64Image }),
-      signal: AbortSignal.timeout(55000)
-    });
+  const retryDelays = [500, 1000, 2000];
+  let lastError = 'Azure request failed.';
 
-    const body = await res.json().catch(() => null);
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/${OCR_FUNCTION_NAME}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          apikey: supabaseAnonKey,
+          'x-access-code': accessCode
+        },
+        body: JSON.stringify({ image: base64Image }),
+        signal: AbortSignal.timeout(55000)
+      });
 
-    if (!res.ok || !body) {
-      return { error: `Azure ${res.status}: ${body?.error || res.statusText}` };
+      const body = await res.json().catch(() => null);
+      if (res.ok && body) {
+        return {
+          data: {
+            first_name: body.first_name || '',
+            last_name: body.last_name || '',
+            email: body.email || '',
+            institute: body.institute || '',
+            department: body.department || '',
+            notes: body.notes || '',
+            newsletter_opt_in: !!body.newsletter_opt_in,
+            confidence_flags: body.confidence_flags || [],
+            boxes: body.boxes || {}
+          }
+        };
+      }
+
+      lastError = `Azure ${res.status}: ${body?.error || res.statusText || 'Invalid response'}`;
+      const isRetryable = res.status === 408 || res.status === 429 || res.status >= 500;
+      if (!isRetryable || attempt === retryDelays.length) return { error: lastError };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      lastError = /failed to fetch|networkerror|load failed/i.test(msg)
+        ? 'Azure: function could not be reached (it may not be deployed, "Verify JWT" may be enabled, or there may be no internet connection).'
+        : `Azure: ${msg}`;
+      if (attempt === retryDelays.length) return { error: lastError };
     }
 
-    return {
-      data: {
-        first_name: body.first_name || '',
-        last_name: body.last_name || '',
-        email: body.email || '',
-        institute: body.institute || '',
-        department: body.department || '',
-        notes: body.notes || '',
-        newsletter_opt_in: !!body.newsletter_opt_in,
-        confidence_flags: body.confidence_flags || [],
-        boxes: body.boxes || {}
-      }
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      error: /failed to fetch|networkerror|load failed/i.test(msg)
-        ? 'Azure: function could not be reached (it may not be deployed, "Verify JWT" may be enabled, or there may be no internet connection).'
-        : `Azure: ${msg}`
-    };
+    await new Promise((resolve) => window.setTimeout(resolve, retryDelays[attempt]));
   }
+
+  return { error: lastError };
 }
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
