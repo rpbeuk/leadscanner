@@ -293,7 +293,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900 text-sm group-hover:text-blue-900 truncate">
                     {lead.processing
-                      ? `Analyzing form ${lead.processing_number}`
+                      ? `${lead.processing_status === 'queued' ? 'Queued form' : 'Analyzing form'} ${lead.processing_number}`
                       : lead.first_name || lead.last_name
                         ? `${lead.first_name} ${lead.last_name}`
                         : 'Unnamed form'}

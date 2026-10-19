@@ -19,6 +19,8 @@ import { LeadsTable } from './components/LeadsTable';
 import { ReviewModal } from './components/ReviewModal';
 import { SettingsModal } from './components/SettingsModal';
 
+const MAX_CONCURRENT_OCR_JOBS = 3;
+
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -36,6 +38,22 @@ export function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const processingLeads = useRef(new Map<string, Lead>());
   const nextProcessingNumber = useRef(1);
+  const activeOcrJobs = useRef(0);
+  const queuedOcrJobs = useRef<Array<() => void>>([]);
+
+  const acquireOcrSlot = () => new Promise<void>((resolve) => {
+    const start = () => {
+      activeOcrJobs.current += 1;
+      resolve();
+    };
+    if (activeOcrJobs.current < MAX_CONCURRENT_OCR_JOBS) start();
+    else queuedOcrJobs.current.push(start);
+  });
+
+  const releaseOcrSlot = () => {
+    activeOcrJobs.current -= 1;
+    queuedOcrJobs.current.shift()?.();
+  };
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -159,6 +177,7 @@ export function App() {
       synced_to_cloud: false,
       processing: true,
       processing_number: processingNumber,
+      processing_status: 'queued',
       created_at: now,
       updated_at: now
     };
@@ -166,7 +185,20 @@ export function App() {
     processingLeads.current.set(placeholder.id, placeholder);
     setLeads((current) => [placeholder, ...current]);
 
+    let hasOcrSlot = false;
     try {
+      await acquireOcrSlot();
+      hasOcrSlot = true;
+      processingLeads.current.set(placeholder.id, {
+        ...placeholder,
+        processing_status: 'analyzing'
+      });
+      setLeads((current) => current.map((item) =>
+        item.id === placeholder.id
+          ? { ...item, processing_status: 'analyzing' }
+          : item
+      ));
+
       const processedLead = await processFormImage(dataUrl, campaignId, repName);
       const lead: Lead = {
         ...processedLead,
@@ -203,6 +235,8 @@ export function App() {
       } catch (saveError) {
         console.error('Failed to save the lead for manual review:', saveError);
       }
+    } finally {
+      if (hasOcrSlot) releaseOcrSlot();
     }
   };
 
