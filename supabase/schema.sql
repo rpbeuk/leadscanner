@@ -80,6 +80,20 @@ ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = 'leads'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.leads;
+    END IF;
+END
+$$;
+
 DROP POLICY IF EXISTS "Allow public read campaigns" ON campaigns;
 DROP POLICY IF EXISTS "Allow public insert campaigns" ON campaigns;
 DROP POLICY IF EXISTS "Allow public update campaigns" ON campaigns;
