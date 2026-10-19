@@ -12,16 +12,43 @@ function normalizeAccountName(value: string): string {
     .trim();
 }
 
-function createAccountMatcher(accounts: CrmAccountDirectoryEntry[]) {
-  const firstExactMatch = new Map<string, CrmAccountDirectoryEntry>();
-  for (const account of accounts) {
-    const key = normalizeAccountName(account.full_name_1 || account.account_name);
-    if (key && !firstExactMatch.has(key)) firstExactMatch.set(key, account);
+function getAccountAliases(account: CrmAccountDirectoryEntry): string[] {
+  const name = account.full_name_1 || account.account_name;
+  const aliases = [...name.matchAll(/\(([^)]+)\)/g)].map((match) => match[1]);
+  const acronymWords = name
+    .replace(/\([^)]*\)/g, ' ')
+    .split(/[^a-zA-ZÀ-ÿ0-9]+/)
+    .filter((word) => word.length > 2 && !/^(and|the|de|van|of|for)$/i.test(word));
+  const acronym = acronymWords.map((word) => word[0]).join('');
+  if (acronym.length >= 3 && acronym.length <= 8) aliases.push(acronym);
+
+  const normalizedName = normalizeAccountName(name);
+  if (normalizedName.includes('katholieke universiteit leuven')) {
+    aliases.push('KU Leuven', 'K U Leuven');
+  }
+  if (normalizedName.includes('universite catholique de louvain')) {
+    aliases.push('UCLouvain', 'De Duve Institute', 'Institut de Duve');
   }
 
-  const fuzzySearch = new Fuse(accounts, {
-    keys: ['full_name_1', 'account_name'],
-    threshold: 0.25,
+  return aliases;
+}
+
+function createAccountMatcher(accounts: CrmAccountDirectoryEntry[]) {
+  const firstExactMatch = new Map<string, CrmAccountDirectoryEntry>();
+  const searchableAccounts = accounts.map((account) => ({
+    ...account,
+    searchAliases: getAccountAliases(account)
+  }));
+  for (const account of searchableAccounts) {
+    for (const name of [account.full_name_1, account.account_name, ...account.searchAliases]) {
+      const key = normalizeAccountName(name);
+      if (key && !firstExactMatch.has(key)) firstExactMatch.set(key, account);
+    }
+  }
+
+  const fuzzySearch = new Fuse(searchableAccounts, {
+    keys: ['full_name_1', 'account_name', 'searchAliases'],
+    threshold: 0.4,
     ignoreLocation: true,
     includeScore: true
   });
@@ -34,7 +61,7 @@ function createAccountMatcher(accounts: CrmAccountDirectoryEntry[]) {
     if (exact) return exact;
 
     const bestMatch = fuzzySearch.search(ocrName)[0];
-    return bestMatch?.score !== undefined && bestMatch.score <= 0.25
+    return bestMatch?.score !== undefined && bestMatch.score <= 0.4
       ? bestMatch.item
       : undefined;
   };
