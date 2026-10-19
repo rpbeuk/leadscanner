@@ -6,6 +6,8 @@ import { getSavedClaudeKey, saveClaudeKey, getSavedGeminiKey, saveGeminiKey, ENG
 interface SettingsModalProps {
   currentRepName: string;
   currentCampaignId: string;
+  currentCampaignLeadCount: number;
+  canSkipCampaignSwitchConfirmation: boolean;
   currentEventEmail: string;
   guideRepresentativeName?: boolean;
   onUpdate: (repName: string, campaignId: string, eventEmail: string) => void;
@@ -19,6 +21,8 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentRepName,
   currentCampaignId,
+  currentCampaignLeadCount,
+  canSkipCampaignSwitchConfirmation,
   currentEventEmail,
   guideRepresentativeName = false,
   onUpdate,
@@ -72,6 +76,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     setRepNameError(null);
     if (actualCampaignId !== currentCampaignId.trim()) {
+      if (canSkipCampaignSwitchConfirmation && currentCampaignLeadCount === 0) {
+        saveSettings(actualRepName, actualCampaignId, actualEventEmail);
+        return;
+      }
       setPendingCampaignSwitch({
         repName: actualRepName,
         campaignId: actualCampaignId,
