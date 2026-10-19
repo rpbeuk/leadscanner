@@ -1,45 +1,119 @@
+import Fuse from 'fuse.js';
 import * as XLSX from 'xlsx';
 import type { Lead } from '../types';
+import { fetchLeadExportLookups, type CrmAccountDirectoryEntry } from './supabase';
 
-function createLeadsWorkbook(leads: Lead[], campaignId: string): XLSX.WorkBook {
-  // Map leads to the required 7 columns + metadata
-  const rows = leads.map((lead, index) => ({
-    'No.': index + 1,
-    'Campaign ID': lead.campaign_id || campaignId,
-    'First Name': lead.first_name,
-    'Last Name': lead.last_name,
-    'Email': lead.email,
-    'University / Institution / Company': lead.institute,
-    'Department': lead.department,
-    'How can we support you with your research?': lead.notes,
-    'Newsletter Opt-in': lead.newsletter_opt_in ? 'Yes' : 'No',
-    'Collected By': lead.collected_by,
-    'CRM Level': lead.matched_account_level || 'N/A',
-    'Email Validated': lead.email_warning ? 'Check Required' : 'OK',
-    'Date Scanned': new Date(lead.created_at).toLocaleString('en-GB')
-  }));
+function normalizeAccountName(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
+function createAccountMatcher(accounts: CrmAccountDirectoryEntry[]) {
+  const firstExactMatch = new Map<string, CrmAccountDirectoryEntry>();
+  for (const account of accounts) {
+    const key = normalizeAccountName(account.full_name_1 || account.account_name);
+    if (key && !firstExactMatch.has(key)) firstExactMatch.set(key, account);
+  }
 
-  // Set column widths for readability
-  worksheet['!cols'] = [
-    { wch: 5 },  // Nr
-    { wch: 14 }, // Campaign ID
-    { wch: 16 }, // First Name
-    { wch: 18 }, // Last Name
-    { wch: 28 }, // Email
-    { wch: 32 }, // University / Institution
-    { wch: 26 }, // Department
-    { wch: 55 }, // Research notes
-    { wch: 18 }, // Newsletter
-    { wch: 20 }, // Collected By
-    { wch: 14 }, // CRM Level
-    { wch: 16 }, // Email Status
-    { wch: 20 }  // Date
-  ];
+  const fuzzySearch = new Fuse(accounts, {
+    keys: ['full_name_1', 'account_name'],
+    threshold: 0.25,
+    ignoreLocation: true,
+    includeScore: true
+  });
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+  return (ocrName: string): CrmAccountDirectoryEntry | undefined => {
+    const normalized = normalizeAccountName(ocrName);
+    if (!normalized) return undefined;
+
+    const exact = firstExactMatch.get(normalized);
+    if (exact) return exact;
+
+    const bestMatch = fuzzySearch.search(ocrName)[0];
+    return bestMatch?.score !== undefined && bestMatch.score <= 0.25
+      ? bestMatch.item
+      : undefined;
+  };
+}
+
+function splitStreetAddress(value: string | null): { street: string; houseNumber: string } {
+  const street = value?.trim() || '';
+  const match = street.match(/^(.*\S)\s+(\d+[a-z]?(?:[-/][a-z]?\d+[a-z]?)?)$/i);
+  if (!match) return { street, houseNumber: '' };
+  return { street: match[1], houseNumber: match[2] };
+}
+
+async function createLeadsWorkbook(leads: Lead[], campaignId: string): Promise<XLSX.WorkBook> {
+  const [lookups, templateResponse] = await Promise.all([
+    fetchLeadExportLookups(),
+    fetch(`${import.meta.env.BASE_URL}CRM_LeadUpload_Template.xlsx`)
+  ]);
+  if (!templateResponse.ok) {
+    throw new Error(`Unable to load the CRM upload template (HTTP ${templateResponse.status}).`);
+  }
+
+  const template = await templateResponse.arrayBuffer();
+  const workbook = XLSX.read(template, { type: 'array', cellStyles: true });
+  const worksheet = workbook.Sheets.Template;
+  if (!worksheet) throw new Error('The CRM upload template is missing its Template worksheet.');
+
+  const findAccount = createAccountMatcher(lookups.accounts);
+  const campaignElements = new Map(
+    lookups.campaignElements.map((entry) => [entry.campaign_id.trim().toUpperCase(), entry.campaign_element])
+  );
+
+  const rows = leads.map((lead) => {
+    const account = findAccount(lead.institute);
+    const address = splitStreetAddress(account?.street || null);
+    const key = lead.campaign_id.trim().toUpperCase();
+
+    return [
+      lead.campaign_id || campaignId,
+      '', // Title / Gender
+      '', // Academic Title
+      lead.first_name,
+      lead.last_name,
+      lead.email,
+      '', // Alternative Function
+      account?.full_name_1 || lead.institute,
+      '', // Full Name 2
+      lead.department, // CRM level 3
+      '', // Full Name 4
+      address.street,
+      address.houseNumber,
+      '', // Building / Floor / Room
+      account?.city || '',
+      account?.postal_code || '',
+      '', // Region
+      account?.country || '',
+      '', // Phone
+      '', // Phone Extension
+      '', // Products
+      '', // Application
+      '', // Customer Request
+      lead.notes, // Research response
+      campaignElements.get(key) || ''
+    ];
+  });
+
+  XLSX.utils.sheet_add_aoa(worksheet, rows, { origin: 'A3' });
+
+  // Keep each output cell's formatting from the first blank template row.
+  rows.forEach((row, rowIndex) => {
+    row.forEach((_value, columnIndex) => {
+      const sourceAddress = XLSX.utils.encode_cell({ r: 2, c: columnIndex });
+      const targetAddress = XLSX.utils.encode_cell({ r: rowIndex + 2, c: columnIndex });
+      const sourceCell = worksheet[sourceAddress];
+      const targetCell = worksheet[targetAddress];
+      if (sourceCell?.s && targetCell) targetCell.s = sourceCell.s;
+      if (sourceCell?.z && targetCell) targetCell.z = sourceCell.z;
+    });
+  });
+
   return workbook;
 }
 
@@ -48,9 +122,9 @@ function getExcelFilename(campaignId: string, date: string): string {
   return `Leads_${safeCampaignId}_${date}.xlsx`;
 }
 
-export function exportLeadsToExcel(leads: Lead[], campaignId: string): void {
+export async function exportLeadsToExcel(leads: Lead[], campaignId: string): Promise<void> {
   const todayStr = new Date().toISOString().split('T')[0];
-  const workbook = createLeadsWorkbook(leads, campaignId);
+  const workbook = await createLeadsWorkbook(leads, campaignId);
   XLSX.writeFile(workbook, getExcelFilename(campaignId, todayStr));
 }
 

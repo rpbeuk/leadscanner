@@ -9,6 +9,57 @@ export const isSupabaseConfigured = Boolean(
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey || 'missing-publishable-key');
 
+export interface CrmAccountDirectoryEntry {
+  source_order: number;
+  account_name: string;
+  full_name_1: string;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+}
+
+export interface CampaignElementEntry {
+  campaign_id: string;
+  campaign_element: string;
+  source_order: number;
+}
+
+export async function fetchLeadExportLookups(): Promise<{
+  accounts: CrmAccountDirectoryEntry[];
+  campaignElements: CampaignElementEntry[];
+}> {
+  const [accountsResult, campaignsResult] = await Promise.all([
+    supabase
+      .from('crm_account_directory')
+      .select('source_order, account_name, full_name_1, street, postal_code, city, country')
+      .order('source_order', { ascending: true })
+      .range(0, 999),
+    supabase
+      .from('campaign_elements')
+      .select('campaign_id, campaign_element, source_order')
+      .order('source_order', { ascending: true })
+      .range(0, 999)
+  ]);
+
+  if (accountsResult.error) {
+    console.error('CRM account lookup failed:', accountsResult.error);
+    throw new Error(`Unable to load CRM account data: ${accountsResult.error.message}`);
+  }
+  if (campaignsResult.error) {
+    console.error('Campaign element lookup failed:', campaignsResult.error);
+    throw new Error(`Unable to load campaign data: ${campaignsResult.error.message}`);
+  }
+  if (!accountsResult.data || !campaignsResult.data) {
+    throw new Error('Supabase returned incomplete CRM export lookup data.');
+  }
+
+  return {
+    accounts: accountsResult.data,
+    campaignElements: campaignsResult.data
+  };
+}
+
 export async function testCloudConnection(): Promise<boolean> {
   try {
     const { error } = await supabase.from('campaigns').select('id').limit(1);

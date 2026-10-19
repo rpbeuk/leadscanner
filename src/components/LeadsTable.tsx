@@ -41,6 +41,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isClosingEvent, setIsClosingEvent] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [closeEventError, setCloseEventError] = useState<string | null>(null);
   const [isFastScanActive, setIsFastScanActive] = useState(false);
   const [isFastCameraStarting, setIsFastCameraStarting] = useState(false);
@@ -168,6 +169,18 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail);
   };
 
+  const handleExcelExport = async () => {
+    setIsExportingExcel(true);
+    try {
+      await exportLeadsToExcel(exportableLeads, activeCampaignId);
+    } catch (error) {
+      console.error('CRM workbook export failed:', error);
+      alert(`Could not create the CRM upload workbook: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   const handleCloseEvent = async () => {
     setIsClosingEvent(true);
     setCloseEventError(null);
@@ -217,12 +230,15 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               <>
                 <button
                   type="button"
-                  onClick={() => exportLeadsToExcel(exportableLeads, activeCampaignId)}
+                  onClick={() => void handleExcelExport()}
+                  disabled={isExportingExcel}
                   className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
                   title="Export to Excel (.xlsx)"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden sm:inline">Excel</span>
+                  {isExportingExcel
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                    : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />}
+                  <span className="hidden sm:inline">{isExportingExcel ? 'Loading...' : 'Excel'}</span>
                 </button>
 
                 <button

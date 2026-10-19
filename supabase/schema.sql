@@ -10,6 +10,23 @@ CREATE TABLE IF NOT EXISTS campaigns (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CRM export lookup data. The source workbook is imported separately and is not stored in the repository.
+CREATE TABLE IF NOT EXISTS crm_account_directory (
+    source_order INTEGER PRIMARY KEY,
+    account_name TEXT NOT NULL,
+    full_name_1 TEXT NOT NULL,
+    street TEXT,
+    postal_code TEXT,
+    city TEXT,
+    country TEXT
+);
+
+CREATE TABLE IF NOT EXISTS campaign_elements (
+    campaign_id TEXT PRIMARY KEY,
+    campaign_element TEXT NOT NULL,
+    source_order INTEGER NOT NULL UNIQUE
+);
+
 -- 2. CRM Accounts Table (~3.500 account levels)
 CREATE TABLE IF NOT EXISTS accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -79,6 +96,13 @@ CREATE POLICY "Users manage their own OCR corrections"
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE crm_account_directory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campaign_elements ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON crm_account_directory FROM anon, authenticated;
+REVOKE ALL ON campaign_elements FROM anon, authenticated;
+GRANT SELECT ON crm_account_directory TO authenticated;
+GRANT SELECT ON campaign_elements TO authenticated;
 
 DO $$
 BEGIN
@@ -102,6 +126,16 @@ CREATE POLICY "Authenticated users can access campaigns" ON campaigns
     FOR ALL TO authenticated
     USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Signed-in users can read CRM account directory" ON crm_account_directory;
+CREATE POLICY "Signed-in users can read CRM account directory" ON crm_account_directory
+    FOR SELECT TO authenticated
+    USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Signed-in users can read campaign elements" ON campaign_elements;
+CREATE POLICY "Signed-in users can read campaign elements" ON campaign_elements
+    FOR SELECT TO authenticated
+    USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Allow public read accounts" ON accounts;
 DROP POLICY IF EXISTS "Allow public insert accounts" ON accounts;
