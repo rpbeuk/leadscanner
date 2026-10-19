@@ -272,44 +272,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="campaign-switch-title"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-            <h2 id="campaign-switch-title" className="text-lg font-bold text-slate-900">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl">
+            <h2 id="campaign-switch-title" className="text-base font-bold text-slate-900">
               Switch to a new event?
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            <p className="mt-1.5 text-sm leading-snug text-slate-600">
               You’re switching from <strong>{pendingCampaignSwitch.previousCampaignId}</strong> to{' '}
               <strong>{pendingCampaignSwitch.campaignId}</strong>. Would you like to permanently remove all
               leads for the previous event from Supabase and this device?
             </p>
             {campaignSwitchError && (
-              <p role="alert" className="mt-3 text-sm font-medium text-red-700">{campaignSwitchError}</p>
+              <p role="alert" className="mt-2 text-sm font-medium text-red-700">{campaignSwitchError}</p>
             )}
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 onClick={() => setPendingCampaignSwitch(null)}
                 disabled={isSwitchingCampaign}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-slate-300 px-1.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
-                Keep editing
+                Stay
               </button>
               <button
                 type="button"
                 onClick={() => void handleCampaignSwitch(false)}
                 disabled={isSwitchingCampaign}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-slate-300 px-1.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
-                Switch; keep leads
+                Switch &amp; Keep
               </button>
               <button
                 type="button"
                 onClick={() => void handleCampaignSwitch(true)}
                 disabled={isSwitchingCampaign}
-                className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+                className="min-h-11 rounded-lg bg-rose-700 px-1.5 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
               >
-                {isSwitchingCampaign ? 'Removing leads...' : 'Switch & remove leads'}
+                {isSwitchingCampaign ? 'Removing...' : 'Switch &amp; Remove'}
               </button>
             </div>
           </div>
