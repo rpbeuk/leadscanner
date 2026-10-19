@@ -42,6 +42,18 @@ export async function syncLeadToSupabase(lead: Lead): Promise<{ success: boolean
   const retryDelays = [500, 1000, 2000];
   for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
     try {
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .upsert(
+          { id: lead.campaign_id, name: lead.campaign_id },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+      if (campaignError) {
+        console.error('Supabase campaign registration error:', campaignError);
+        return { success: false, error: campaignError.message };
+      }
+
       const { error } = await supabase
         .from('leads')
         .upsert(payload, { onConflict: 'id' });
