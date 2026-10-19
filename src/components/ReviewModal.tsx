@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ConfidenceFlag, Lead } from '../types';
 import { AlertTriangle, Check, X, Mail, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
 import { validateEmailMatch } from '../lib/ocrEngine';
@@ -153,11 +153,23 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   totalCount
 }) => {
   const [lead, setLead] = useState<Lead>({ ...initialLead });
+  const [hasLocalEdits, setHasLocalEdits] = useState(false);
+  const [remoteLeadChanged, setRemoteLeadChanged] = useState(false);
   const [showOriginalPhoto, setShowOriginalPhoto] = useState(false);
   const [notesScrollTop, setNotesScrollTop] = useState(0);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const noteMatches = findConfidenceMatches(lead.notes, lead.confidence_flags);
+
+  useEffect(() => {
+    if (initialLead.id !== lead.id || initialLead.updated_at === lead.updated_at) return;
+    if (hasLocalEdits) {
+      setRemoteLeadChanged(true);
+    } else {
+      setLead({ ...initialLead });
+      setRemoteLeadChanged(false);
+    }
+  }, [initialLead, lead.id, lead.updated_at, hasLocalEdits]);
 
   useLayoutEffect(() => {
     const textarea = notesTextareaRef.current;
@@ -189,6 +201,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
       }
     }
 
+    setHasLocalEdits(true);
     setLead(updated);
   };
 
@@ -212,7 +225,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 Review & verify lead
               </h2>
               <p className="text-xs text-blue-200">
-                Campaign <span className="font-semibold text-white">{lead.campaign_id}</span> • Collected by{' '}
+                Campaign <span className="font-semibold text-white">{lead.campaign_id}</span> • Last collected/modified by{' '}
                 <span className="font-semibold text-white">{lead.collected_by}</span>
               </p>
             </div>
@@ -235,6 +248,22 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
 
         {/* Content Body */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
+          {remoteLeadChanged && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <span>This lead was updated by another user while you were editing. Reload the latest version before continuing.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLead({ ...initialLead });
+                  setHasLocalEdits(false);
+                  setRemoteLeadChanged(false);
+                }}
+                className="shrink-0 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-100"
+              >
+                Reload latest
+              </button>
+            </div>
+          )}
           {/* E-mail Mismatch Warning */}
           {lead.email_warning && (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 shadow-sm">
@@ -441,7 +470,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-md flex items-center gap-1.5 transition-colors"
+              disabled={remoteLeadChanged}
+              className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-md flex items-center gap-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
               <span>Confirm</span>

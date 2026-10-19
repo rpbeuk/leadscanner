@@ -9,6 +9,7 @@ interface SettingsModalProps {
   currentEventEmail: string;
   guideRepresentativeName?: boolean;
   onUpdate: (repName: string, campaignId: string, eventEmail: string) => void;
+  onCloseEvent: (campaignId: string) => Promise<void>;
   onClose: () => void;
   isOnline: boolean;
   onTriggerSync: () => void;
@@ -21,6 +22,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentEventEmail,
   guideRepresentativeName = false,
   onUpdate,
+  onCloseEvent,
   onClose,
   isOnline,
   onTriggerSync,
@@ -33,6 +35,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [geminiKey, setGeminiKey] = useState(getSavedGeminiKey());
   const [accessCode, setAccessCode] = useState(getSavedAccessCode());
   const [repNameError, setRepNameError] = useState<string | null>(null);
+  const [pendingCampaignSwitch, setPendingCampaignSwitch] = useState<{
+    repName: string;
+    campaignId: string;
+    eventEmail: string;
+    previousCampaignId: string;
+  } | null>(null);
+  const [campaignSwitchError, setCampaignSwitchError] = useState<string | null>(null);
+  const [isSwitchingCampaign, setIsSwitchingCampaign] = useState(false);
   const representativeNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,9 +51,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [guideRepresentativeName]);
 
+  const saveSettings = (actualRepName: string, actualCampaignId: string, actualEventEmail: string) => {
+    saveRepName(actualRepName);
+    saveCampaignId(actualCampaignId);
+    saveEventEmail(actualEventEmail);
+    saveClaudeKey(claudeKey);
+    saveGeminiKey(geminiKey);
+    saveAccessCode(accessCode);
+    onUpdate(actualRepName, actualCampaignId, actualEventEmail);
+    onClose();
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const actualRepName = repName.trim();
+    const actualCampaignId = campaignId.trim();
     const actualEventEmail = eventEmail.trim();
     if (!isActualRepName(actualRepName)) {
       setRepNameError('Please enter the actual representative name before saving.');
@@ -51,14 +73,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
 
     setRepNameError(null);
-    saveRepName(actualRepName);
-    saveCampaignId(campaignId);
-    saveEventEmail(actualEventEmail);
-    saveClaudeKey(claudeKey);
-    saveGeminiKey(geminiKey);
-    saveAccessCode(accessCode);
-    onUpdate(actualRepName, campaignId, actualEventEmail);
-    onClose();
+    if (actualCampaignId !== currentCampaignId.trim()) {
+      setPendingCampaignSwitch({
+        repName: actualRepName,
+        campaignId: actualCampaignId,
+        eventEmail: actualEventEmail,
+        previousCampaignId: currentCampaignId.trim()
+      });
+      setCampaignSwitchError(null);
+      return;
+    }
+    saveSettings(actualRepName, actualCampaignId, actualEventEmail);
+  };
+
+  const handleCampaignSwitch = async (removePreviousLeads: boolean) => {
+    if (!pendingCampaignSwitch) return;
+    setIsSwitchingCampaign(true);
+    setCampaignSwitchError(null);
+    try {
+      if (removePreviousLeads) {
+        await onCloseEvent(pendingCampaignSwitch.previousCampaignId);
+      }
+      saveSettings(
+        pendingCampaignSwitch.repName,
+        pendingCampaignSwitch.campaignId,
+        pendingCampaignSwitch.eventEmail
+      );
+    } catch (error) {
+      console.error('Unable to switch campaign:', error);
+      setCampaignSwitchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSwitchingCampaign(false);
+    }
   };
 
   return (
@@ -221,6 +267,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </form>
       </div>
+      {pendingCampaignSwitch && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="campaign-switch-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 id="campaign-switch-title" className="text-lg font-bold text-slate-900">
+              Switch to a new event?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              You’re switching from <strong>{pendingCampaignSwitch.previousCampaignId}</strong> to{' '}
+              <strong>{pendingCampaignSwitch.campaignId}</strong>. Would you like to permanently remove all
+              leads for the previous event from Supabase and this device?
+            </p>
+            {campaignSwitchError && (
+              <p role="alert" className="mt-3 text-sm font-medium text-red-700">{campaignSwitchError}</p>
+            )}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingCampaignSwitch(null)}
+                disabled={isSwitchingCampaign}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCampaignSwitch(false)}
+                disabled={isSwitchingCampaign}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Switch; keep leads
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCampaignSwitch(true)}
+                disabled={isSwitchingCampaign}
+                className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+              >
+                {isSwitchingCampaign ? 'Removing leads...' : 'Switch & remove leads'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

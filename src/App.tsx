@@ -9,10 +9,12 @@ import {
   getAllLocalLeads, 
   saveLocalLead, 
   deleteLocalLead, 
+  deleteLocalLeadsForCampaign,
   syncPendingLeads 
 } from './lib/storage';
-import { testCloudConnection, fetchLeadsFromSupabase, syncLeadToSupabase, supabase, isSupabaseConfigured } from './lib/supabase';
+import { fetchLeadsFromSupabase, syncLeadToSupabase, supabase, isSupabaseConfigured } from './lib/supabase';
 import { processFormImage } from './lib/ocrEngine';
+import { learnPersonalOcrCorrections } from './lib/personalizedOcr';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
 import { LeadsTable } from './components/LeadsTable';
@@ -40,6 +42,7 @@ export function App() {
   const nextProcessingNumber = useRef(1);
   const activeOcrJobs = useRef(0);
   const queuedOcrJobs = useRef<Array<() => void>>([]);
+  const isRefreshingLeads = useRef(false);
 
   const acquireOcrSlot = () => new Promise<void>((resolve) => {
     const start = () => {
@@ -94,29 +97,54 @@ export function App() {
 
   // Load leads directly from Supabase and sync local storage
   const loadLeads = useCallback(async () => {
-    // 1. Fetch live from Supabase
-    const cloudOk = await testCloudConnection();
-    setIsOnline(cloudOk);
-
-    if (cloudOk) {
-      const remoteLeads = await fetchLeadsFromSupabase(campaignId);
-      for (const r of remoteLeads) {
-        await saveLocalLead(r);
+    if (isRefreshingLeads.current) return;
+    isRefreshingLeads.current = true;
+    try {
+      try {
+        const remoteLeads = await fetchLeadsFromSupabase(campaignId);
+        setIsOnline(true);
+        const remoteIds = new Set(remoteLeads.map((lead) => lead.id));
+        const localBeforeRefresh = await getAllLocalLeads();
+        const localById = new Map(localBeforeRefresh.map((lead) => [lead.id, lead]));
+        for (const localLead of localBeforeRefresh) {
+          if (
+            localLead.campaign_id === campaignId &&
+            localLead.synced_to_cloud &&
+            !remoteIds.has(localLead.id)
+          ) {
+            await deleteLocalLead(localLead.id);
+          }
+        }
+        for (const remoteLead of remoteLeads) {
+          if (!localById.has(remoteLead.id) || localById.get(remoteLead.id)?.synced_to_cloud) {
+            await saveLocalLead(remoteLead);
+          }
+        }
+      } catch (error) {
+        console.error('Unable to refresh shared campaign leads:', error);
+        setIsOnline(false);
       }
-    }
 
-    // 2. Read local
-    const local = await getAllLocalLeads();
-    const localIds = new Set(local.map((lead) => lead.id));
-    const activeProcessing = Array.from(processingLeads.current.values())
-      .filter((lead) => !localIds.has(lead.id));
-    setLeads([...activeProcessing, ...local]);
+      const local = await getAllLocalLeads();
+      const localIds = new Set(local.map((lead) => lead.id));
+      const activeProcessing = Array.from(processingLeads.current.values())
+        .filter((lead) => !localIds.has(lead.id));
+      setLeads([...activeProcessing, ...local]);
+    } finally {
+      isRefreshingLeads.current = false;
+    }
   }, [campaignId]);
 
   useEffect(() => {
     if (!session) return;
     loadLeads();
 
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadLeads();
+    }, 5000);
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') void loadLeads();
+    };
     const handleStatus = () => {
       setIsOnline(navigator.onLine);
       if (navigator.onLine) {
@@ -124,10 +152,13 @@ export function App() {
       }
     };
 
+    window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
 
     return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
     };
@@ -199,13 +230,19 @@ export function App() {
           : item
       ));
 
-      const processedLead = await processFormImage(dataUrl, campaignId, repName);
+      const processedLead = await processFormImage(dataUrl, campaignId, repName, session?.user.id || '');
       const lead: Lead = {
         ...processedLead,
         id: placeholder.id,
         processing: false,
         created_at: placeholder.created_at
       };
+      const cloudResult = await syncLeadToSupabase(lead);
+      if (cloudResult.success) {
+        lead.synced_to_cloud = true;
+      } else {
+        console.error('New lead is saved locally but could not be shared:', cloudResult.error);
+      }
       await saveLocalLead(lead);
       processingLeads.current.delete(placeholder.id);
       setLeads((current) => {
@@ -243,13 +280,31 @@ export function App() {
   // Save reviewed lead directly to Supabase live
   const handleSaveReviewedLead = async (updatedLead: Lead) => {
     // Save to Supabase live
-    const res = await syncLeadToSupabase(updatedLead);
+    const leadWithModifier = { ...updatedLead, collected_by: repName };
+    const res = await syncLeadToSupabase(leadWithModifier);
     if (res.success) {
-      updatedLead.synced_to_cloud = true;
+      leadWithModifier.synced_to_cloud = true;
+    } else {
+      console.error('Could not share the reviewed lead with other devices:', res.error);
     }
     
     // Save local cache
-    await saveLocalLead(updatedLead);
+    await saveLocalLead(leadWithModifier);
+    if (!res.success) {
+      setLeads((current) => current.map((lead) =>
+        lead.id === leadWithModifier.id ? leadWithModifier : lead
+      ));
+      alert('This change is saved on this device but could not be shared with other users. Check the connection and confirm again to retry.');
+      return;
+    }
+    try {
+      await learnPersonalOcrCorrections(session?.user.id || '', leadWithModifier);
+    } catch (error) {
+      console.error('Lead saved but personalized OCR learning failed:', error);
+      alert(`Lead saved, but personalized OCR learning failed: ${error instanceof Error ? error.message : String(error)}`);
+      await loadLeads();
+      return;
+    }
     await loadLeads();
     setActiveReviewLead(null);
   };
@@ -263,6 +318,31 @@ export function App() {
     }
     await deleteLocalLead(id);
     await loadLeads();
+  };
+
+  const handleCloseEvent = async (eventCampaignId: string) => {
+    if (Array.from(processingLeads.current.values()).some((lead) => lead.campaign_id === eventCampaignId)) {
+      throw new Error('Wait for all form analyses to finish before closing this event.');
+    }
+
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('campaign_id', eventCampaignId);
+    if (error) {
+      throw new Error(`Could not remove this event’s leads from Supabase: ${error.message}`);
+    }
+
+    try {
+      await deleteLocalLeadsForCampaign(eventCampaignId);
+    } catch (error) {
+      throw new Error(
+        `The leads were removed from Supabase, but local cleanup failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+    setLeads((current) => current.filter((lead) => lead.campaign_id !== eventCampaignId));
   };
 
   const pendingCount = leads.filter(l => !l.synced_to_cloud && !l.processing).length;
@@ -323,6 +403,7 @@ export function App() {
             setIsSettingsOpen(true);
           }}
           onDirectImageCaptured={handleDirectImageCaptured}
+          onCloseEvent={handleCloseEvent}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
           }}
@@ -332,7 +413,7 @@ export function App() {
       {/* Review & Edit Modal */}
       {activeReviewLead && (
         <ReviewModal
-          lead={activeReviewLead}
+          lead={leads.find((lead) => lead.id === activeReviewLead.id) || activeReviewLead}
           onSave={handleSaveReviewedLead}
           onDelete={(id) => {
             void handleDeleteLead(id);
@@ -349,6 +430,7 @@ export function App() {
           currentCampaignId={campaignId}
           currentEventEmail={eventEmail}
           guideRepresentativeName={guideRepresentativeName}
+          onCloseEvent={handleCloseEvent}
           onUpdate={(newRep, newCamp, newEmail) => {
             setRepName(newRep);
             setCampaignId(newCamp);
