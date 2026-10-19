@@ -36,6 +36,7 @@ export function App() {
   const [campaignId, setCampaignId] = useState<string>(getSavedCampaignId);
   const [eventEmail, setEventEmail] = useState<string>(getSavedEventEmail);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [verifiedCampaignId, setVerifiedCampaignId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const processingLeads = useRef(new Map<string, Lead>());
@@ -104,9 +105,11 @@ export function App() {
       return;
     }
     isRefreshingLeads.current = true;
+    let remoteCampaignDataLoaded = false;
     try {
       try {
         const remoteLeads = await fetchLeadsFromSupabase(campaignId);
+        remoteCampaignDataLoaded = true;
         setIsOnline(true);
         const remoteIds = new Set(remoteLeads.map((lead) => lead.id));
         const localBeforeRefresh = await getAllLocalLeads();
@@ -135,6 +138,7 @@ export function App() {
       const activeProcessing = Array.from(processingLeads.current.values())
         .filter((lead) => !localIds.has(lead.id));
       setLeads([...activeProcessing, ...local]);
+      setVerifiedCampaignId(remoteCampaignDataLoaded ? campaignId : null);
     } finally {
       isRefreshingLeads.current = false;
       if (refreshLeadsAgain.current) {
@@ -475,6 +479,8 @@ export function App() {
         <SettingsModal
           currentRepName={repName}
           currentCampaignId={campaignId}
+          currentCampaignLeadCount={leads.filter((lead) => lead.campaign_id === campaignId).length}
+          canSkipCampaignSwitchConfirmation={verifiedCampaignId === campaignId}
           currentEventEmail={eventEmail}
           guideRepresentativeName={guideRepresentativeName}
           onCloseEvent={handleCloseEvent}

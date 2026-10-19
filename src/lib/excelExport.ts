@@ -88,6 +88,12 @@ async function createLeadsWorkbook(leads: Lead[], campaignId: string): Promise<X
   const worksheet = workbook.Sheets.Template;
   if (!worksheet) throw new Error('The CRM upload template is missing its Template worksheet.');
 
+  for (const address of Object.keys(worksheet)) {
+    if (address.startsWith('!')) continue;
+    const cell = worksheet[address] as XLSX.CellObject | undefined;
+    if (cell?.c) delete cell.c;
+  }
+
   const findAccount = createAccountMatcher(lookups.accounts);
   const campaignElements = new Map(
     lookups.campaignElements.map((entry) => [entry.campaign_id.trim().toUpperCase(), entry.campaign_element])
