@@ -39,7 +39,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   onSelectLead
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [closeDialogAction, setCloseDialogAction] = useState<'email' | 'close' | null>(null);
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isClosingEvent, setIsClosingEvent] = useState(false);
   const [closeEventError, setCloseEventError] = useState<string | null>(null);
   const [isFastScanActive, setIsFastScanActive] = useState(false);
@@ -166,18 +166,14 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
   const handleEmailDraft = () => {
     openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail);
-    setCloseDialogAction(null);
   };
 
-  const handleCloseEvent = async (alsoOpenEmail: boolean) => {
+  const handleCloseEvent = async () => {
     setIsClosingEvent(true);
     setCloseEventError(null);
     try {
-      if (alsoOpenEmail) {
-        openMarketingMailClient(exportableLeads, activeCampaignId, repName, eventEmail);
-      }
       await onCloseEvent(activeCampaignId);
-      setCloseDialogAction(null);
+      setIsCloseDialogOpen(false);
     } catch (error) {
       console.error('Failed to close event:', error);
       setCloseEventError(error instanceof Error ? error.message : String(error));
@@ -231,10 +227,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setCloseEventError(null);
-                    setCloseDialogAction('email');
-                  }}
+                  onClick={handleEmailDraft}
                   className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
                   title="Open an email draft for this event"
                 >
@@ -247,7 +240,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               type="button"
               onClick={() => {
                 setCloseEventError(null);
-                setCloseDialogAction('close');
+                setIsCloseDialogOpen(true);
               }}
               disabled={isClosingEvent}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
@@ -505,7 +498,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         </div>
       )}
 
-      {closeDialogAction && (
+      {isCloseDialogOpen && (
         <div
           role="dialog"
           aria-modal="true"
@@ -514,18 +507,11 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         >
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
             <h2 id="close-event-title" className="text-lg font-bold text-slate-900">
-              {closeDialogAction === 'email' ? 'Prepare end-of-day email?' : 'Close this event?'}
+              Close this event?
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              {closeDialogAction === 'email'
-                ? `There are ${campaignLeads.length} leads for this event. Do you also want to permanently remove them from Supabase and this device, and close the event?`
-                : `This will permanently delete all ${campaignLeads.length} leads for ${activeCampaignId} from Supabase and this device.`}
+              {`This will permanently delete all ${campaignLeads.length} leads for ${activeCampaignId} from Supabase and this device.`}
             </p>
-            {closeDialogAction === 'email' && (
-              <p className="mt-2 text-sm font-medium text-amber-800">
-                Export the Excel file and attach it to the email before closing the event.
-              </p>
-            )}
             {hasProcessingLeads && (
               <p role="alert" className="mt-3 text-sm font-medium text-amber-800">
                 {campaignLeads.filter((lead) => lead.processing).length} form(s) are still being processed. Wait for them to finish before closing the event.
@@ -537,33 +523,20 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setCloseDialogAction(null)}
+                onClick={() => setIsCloseDialogOpen(false)}
                 disabled={isClosingEvent}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
-              {closeDialogAction === 'email' && (
-                <button
-                  type="button"
-                  onClick={handleEmailDraft}
-                  disabled={isClosingEvent}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Open email only
-                </button>
-              )}
               <button
                 type="button"
-                onClick={() => {
-                  if (closeDialogAction === 'email') void handleCloseEvent(true);
-                  else void handleCloseEvent(false);
-                }}
+                onClick={() => void handleCloseEvent()}
                 disabled={isClosingEvent || hasProcessingLeads}
                 className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isClosingEvent && <Loader2 className="h-4 w-4 animate-spin" />}
-                {closeDialogAction === 'email' ? 'Open email & close event' : 'Close event & delete leads'}
+                Close event &amp; delete leads
               </button>
             </div>
           </div>

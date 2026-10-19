@@ -1,7 +1,7 @@
 import type { Lead, ConfidenceFlag } from '../types';
 import { matchCrmAccount } from './crmAccounts';
 import { resizeImageForMobile } from './imageUtils';
-import { supabaseUrl, supabaseAnonKey } from './supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from './supabase';
 import { applyPersonalOcrCorrections } from './personalizedOcr';
 
 export const ENGINES = { azure: true, claude: false, gemini: false };
@@ -23,7 +23,6 @@ type Extracted = {
 };
 
 const KEY_GEMINI = 'miltenyi_gemini_api_key';
-const KEY_ACCESS = 'miltenyi_scan_access_code';
 const KEY_CLAUDE = 'miltenyi_claude_api_key';
 
 export function getSavedGeminiKey(): string {
@@ -31,13 +30,6 @@ export function getSavedGeminiKey(): string {
 }
 export function saveGeminiKey(key: string): void {
   localStorage.setItem(KEY_GEMINI, key.trim());
-}
-
-export function getSavedAccessCode(): string {
-  return localStorage.getItem(KEY_ACCESS) || '';
-}
-export function saveAccessCode(code: string): void {
-  localStorage.setItem(KEY_ACCESS, code.trim());
 }
 
 export function getSavedClaudeKey(): string {
@@ -372,21 +364,23 @@ async function extractWithClaude(
 
 const OCR_FUNCTION_NAME = import.meta.env.VITE_OCR_FUNCTION_NAME || 'scan-form';
 
-async function extractWithAzure(
-  base64Image: string,
-  accessCode: string
-): Promise<OcrAttemptResult> {
+async function extractWithAzure(base64Image: string): Promise<OcrAttemptResult> {
   const retryDelays = [500, 1000, 2000];
   let lastError = 'Azure request failed.';
 
   for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
     try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return { error: `Azure: unable to read sign-in session (${error.message}).` };
+      const accessToken = data.session?.access_token;
+      if (!accessToken) return { error: 'Azure: not signed in.' };
+
       const res = await fetch(`${supabaseUrl}/functions/v1/${OCR_FUNCTION_NAME}`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           apikey: supabaseAnonKey,
-          'x-access-code': accessCode
+          authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({ image: base64Image }),
         signal: AbortSignal.timeout(55000)
@@ -457,14 +451,12 @@ function sanitizeExtracted(extracted: Extracted): Extracted {
 
   return out;
 }
-
 function getOcrAttempts(imageDataUrl: string): Array<() => Promise<OcrAttemptResult>> {
   const attempts: Array<() => Promise<OcrAttemptResult>> = [];
-  const accessCode = getSavedAccessCode();
   const claudeKey = getSavedClaudeKey();
   const geminiKey = getSavedGeminiKey();
 
-  if (ENGINES.azure && accessCode) attempts.push(() => extractWithAzure(imageDataUrl, accessCode));
+  if (ENGINES.azure) attempts.push(() => extractWithAzure(imageDataUrl));
   if (ENGINES.claude && claudeKey) attempts.push(() => extractWithClaude(imageDataUrl, claudeKey));
   if (ENGINES.gemini && geminiKey) attempts.push(() => extractWithGemini(imageDataUrl, geminiKey));
 
@@ -509,7 +501,7 @@ async function extractLeadFromImage(
 
   const engineError =
     attempts.length === 0
-      ? 'No access code or API key is configured (Settings). Enter the fields manually.'
+      ? 'No recognition engine is available. Enter the fields manually.'
       : errors.length > 0
         ? `Automatic form recognition failed (${errors.join(' | ')}). Enter the fields manually.`
         : undefined;
