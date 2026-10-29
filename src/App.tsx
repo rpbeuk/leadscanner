@@ -232,28 +232,6 @@ export function App() {
     }
   };
 
-  const handleCreateManualLead = () => {
-    const now = new Date().toISOString();
-    setActiveReviewLead({
-      id: crypto.randomUUID(),
-      campaign_id: campaignId,
-      collected_by: repName,
-      first_name: '',
-      last_name: '',
-      email: '',
-      institute: '',
-      department: '',
-      notes: '',
-      newsletter_opt_in: false,
-      email_warning: false,
-      confidence_flags: [],
-      status: 'draft',
-      synced_to_cloud: false,
-      created_at: now,
-      updated_at: now
-    });
-  };
-
   // Direct camera / gallery captured from table
   const handleDirectImageCaptured = async (dataUrl: string) => {
     const now = new Date().toISOString();
@@ -476,7 +454,6 @@ export function App() {
             setIsSettingsOpen(true);
           }}
           onDirectImageCaptured={handleDirectImageCaptured}
-          onCreateManualLead={handleCreateManualLead}
           onCloseEvent={handleCloseEvent}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
