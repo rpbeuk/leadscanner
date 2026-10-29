@@ -232,6 +232,28 @@ export function App() {
     }
   };
 
+  const handleCreateManualLead = () => {
+    const now = new Date().toISOString();
+    setActiveReviewLead({
+      id: crypto.randomUUID(),
+      campaign_id: campaignId,
+      collected_by: repName,
+      first_name: '',
+      last_name: '',
+      email: '',
+      institute: '',
+      department: '',
+      notes: '',
+      newsletter_opt_in: false,
+      email_warning: false,
+      confidence_flags: [],
+      status: 'draft',
+      synced_to_cloud: false,
+      created_at: now,
+      updated_at: now
+    });
+  };
+
   // Direct camera / gallery captured from table
   const handleDirectImageCaptured = async (dataUrl: string) => {
     const now = new Date().toISOString();
@@ -340,9 +362,9 @@ export function App() {
     // Save local cache
     await saveLocalLead(leadWithModifier);
     if (!res.success) {
-      setLeads((current) => current.map((lead) =>
-        lead.id === leadWithModifier.id ? leadWithModifier : lead
-      ));
+      setLeads((current) => current.some((lead) => lead.id === leadWithModifier.id)
+        ? current.map((lead) => lead.id === leadWithModifier.id ? leadWithModifier : lead)
+        : [leadWithModifier, ...current]);
       alert(
         `This change is saved on this device but could not be shared with other users. Check the connection and confirm again to retry.\n\nSupabase error: ${res.error || 'Unknown error'}`
       );
@@ -454,6 +476,7 @@ export function App() {
             setIsSettingsOpen(true);
           }}
           onDirectImageCaptured={handleDirectImageCaptured}
+          onCreateManualLead={handleCreateManualLead}
           onCloseEvent={handleCloseEvent}
           onSelectLead={(lead) => {
             setActiveReviewLead(lead);
