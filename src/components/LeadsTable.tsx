@@ -12,6 +12,7 @@ import {
   Building, 
   ChevronRight,
   Upload,
+  FilePlus2,
   X
 } from 'lucide-react';
 import { openMarketingMailClient, exportLeadsToExcel } from '../lib/excelExport';
@@ -24,6 +25,7 @@ interface LeadsTableProps {
   eventEmail: string;
   onRequireRepName: () => void;
   onDirectImageCaptured: (dataUrl: string) => void;
+  onCreateManualLead: () => void;
   onCloseEvent: (campaignId: string) => Promise<void>;
   onSelectLead: (lead: Lead) => void;
 }
@@ -35,6 +37,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   eventEmail,
   onRequireRepName,
   onDirectImageCaptured,
+  onCreateManualLead,
   onCloseEvent,
   onSelectLead
 }) => {
@@ -405,12 +408,27 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       </div>
 
       {/* Floating Bottom Bar: Instant Camera Prompt + Gallery + Live Framing */}
-      <div className="fixed bottom-5 inset-x-0 flex justify-center items-center gap-3 px-4 pointer-events-none z-30">
+      <div className="fixed bottom-5 inset-x-0 flex justify-center items-center gap-2 sm:gap-3 px-2 sm:px-4 pointer-events-none z-30">
+        <button
+          type="button"
+          onClick={() => {
+            if (!isActualRepName(repName)) {
+              onRequireRepName();
+              return;
+            }
+            onCreateManualLead();
+          }}
+          className="pointer-events-auto shrink-0 p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
+          title="Enter a lead manually"
+          aria-label="Enter a lead manually"
+        >
+          <FilePlus2 className="w-5 h-5 text-slate-600" />
+        </button>
         {/* Gallery / Files */}
         <button
           type="button"
           onClick={() => openCaptureInput(galleryInputRef)}
-          className="pointer-events-auto p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
+          className="pointer-events-auto shrink-0 p-3.5 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all"
           title="Upload a photo from your gallery"
         >
           <Upload className="w-5 h-5 text-slate-600" />
@@ -420,7 +438,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         <button
           type="button"
           onClick={() => openCaptureInput(cameraInputRef)}
-          className="pointer-events-auto px-7 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2.5 transition-all border-2 border-white ring-2 ring-orange-400/20"
+          className="pointer-events-auto shrink-0 px-3 sm:px-7 py-3.5 rounded-full bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2 sm:gap-2.5 transition-all border-2 border-white ring-2 ring-orange-400/20"
         >
           <Camera className="w-5 h-5" />
           <span>Scan form</span>
@@ -430,7 +448,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
         <button
           type="button"
           onClick={startFastScan}
-          className="pointer-events-auto relative h-14 w-14 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all flex items-center justify-center"
+          className="pointer-events-auto shrink-0 relative h-14 w-14 rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-lg border border-slate-200 active:scale-95 transition-all flex items-center justify-center"
           title="Start fast multi-form scanning"
           aria-label="Start fast multi-form scanning"
         >
