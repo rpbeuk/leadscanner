@@ -515,7 +515,8 @@ async function extractLeadFromImage(
       ...await applyPersonalOcrCorrections(userId, suggested)
     };
   } catch (error) {
-    console.error('Could not load personalized OCR corrections:', error);
+    console.error('Could not load OCR corrections:', error);
+    errors.push(`Learned vocabulary could not be loaded: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return {
@@ -528,7 +529,9 @@ async function extractLeadFromImage(
       department: suggested.department,
       notes: suggested.notes
     },
-    engineError,
+    engineError: engineError || (errors.length > 0
+      ? `Learned vocabulary could not be applied. Review the recognized text. ${errors.join(' | ')}`
+      : undefined),
     imageDataUrl: safeImageDataUrl
   };
 }

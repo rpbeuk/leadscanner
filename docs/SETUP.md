@@ -55,6 +55,12 @@ Na elke wijziging aan `index.ts` (bijv. de prompt) moet je de function **opnieuw
 ## 6. In de app (per telefoon)
 *Instellingen* → **Toegangscode Azure OCR** invullen (precies gelijk aan `SCAN_ACCESS_CODE`, inclusief kleine letters en streepjes). Dit wordt alleen in de browser van die telefoon bewaard.
 
+## Gedeelde OCR-woordenschat
+Voer voor een bestaande database `supabase/migrations/20261112230000_shared_ocr_corrections.sql` uit voordat de bijgewerkte app wordt gepubliceerd.
+Correcties in instelling, afdeling en onderzoeksnotities worden gedeeld met alle ingelogde medewerkers, ook tussen campagnes en tussen deze drie velden. Bestaande correcties tellen direct mee. Contactnamen en e-mailadressen blijven persoonlijk.
+Iedere medewerker telt per woordpaar eenmaal mee. Bij evenveel stemmen voor verschillende correcties wordt geen gedeelde correctie toegepast; een persoonlijke correctie heeft altijd voorrang. De toepassing gebeurt na de beeldherkenning, zonder het Azure-model opnieuw te trainen.
+De view deelt alleen woordparen, geen gebruikers-ID's of volledige leads. Hoofdletters en accenten blijven behouden. Verwijderen of aanpassen van de persoonlijke broncorrectie werkt direct door in de gedeelde woordenschat.
+
 ## Problemen oplossen
 | Melding | Oorzaak / oplossing |
 |---|---|
