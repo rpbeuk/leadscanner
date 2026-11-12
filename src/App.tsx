@@ -373,8 +373,8 @@ export function App() {
     try {
       await learnPersonalOcrCorrections(session?.user.id || '', leadWithModifier);
     } catch (error) {
-      console.error('Lead saved but personalized OCR learning failed:', error);
-      alert(`Lead saved, but personalized OCR learning failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Lead saved but OCR correction learning failed:', error);
+      alert(`Lead saved, but OCR correction learning failed: ${error instanceof Error ? error.message : String(error)}`);
       await loadLeads();
       return;
     }
